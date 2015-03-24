@@ -122,12 +122,25 @@ KBEngine.WARNING_MSG = function(s)
 /*-----------------------------------------------------------------------------------------
 												event
 -----------------------------------------------------------------------------------------*/
+KBEngine.EventInfo = function(classinst, callbackfn)
+{
+	this.callbackfn = callbackfn;
+	this.classinst = classinst;
+}
+
 KBEngine.Event = function()
 {
 	this._events = {};
 	
-	this.register = function(evtName, callbackfn)
+	this.register = function(evtName, classinst, strCallback)
 	{
+		var callbackfn = eval("classinst." + strCallback);
+		if(callbackfn == undefined)
+		{
+			KBEngine.ERROR_MSG('KBEngine.Event::fire: not found strCallback(' + classinst  + ")!"+strCallback);  
+			return;
+		}
+
 		var evtlst = this._events[evtName];
 		if(evtlst == undefined)
 		{
@@ -135,24 +148,47 @@ KBEngine.Event = function()
 			this._events[evtName] = evtlst;
 		}
 		
-		evtlst.push(callbackfn);
+		var info = new KBEngine.EventInfo(classinst, callbackfn);
+		evtlst.push(info);
 	}
 	
-	this.deregister = function(evtName, callbackfn)
+	this.deregister = function(evtName, classinst, callbackfn)
 	{
+		for(itemkey in this._events)
+		{
+			var evtlst = this._events[itemkey];
+			while(true)
+			{
+				var found = false;
+				for(var i=0; i<evtlst.length; i++)
+				{
+					var info = evtlst[i];
+					if(info.classinst == classinst)
+					{
+						delete evtlst[i];
+						found = true;
+						break;
+					}
+				}
+				
+				if(!found)
+					break;
+			}
+		}
 	}
 	
 	this.fire = function()
 	{
 		if(arguments.length < 1)
 		{
-			KBEngine.ERROR_MSG('KBEngine.Event::fire: not fount eventName!');  
+			KBEngine.ERROR_MSG('KBEngine.Event::fire: not found eventName!');  
 			return;
 		}
 		
 		var evtName = arguments[0];
 		delete arguments[0];
 		var evtlst = this._events[evtName];
+		
 		if(evtlst == undefined)
 		{
 			return;			
@@ -160,17 +196,18 @@ KBEngine.Event = function()
 		
 		for(var i=0; i<evtlst.length; i++)
 		{
+			var info = evtlst[i];
 			if(arguments.length < 1)
 			{
-				evtlst[i]();
+				info.callbackfn.apply(info.classinst);
 			}
 			else
 			{
-				evtlst[i](arguments);
+				info.callbackfn.apply(info.classinst, arguments);
 			}
 		}
 	}
-};
+}
 
 KBEngine.Event = new KBEngine.Event();
 
@@ -1722,11 +1759,13 @@ KBEngine.KBEngineApp = function()
 	this.onopen = function()
 	{  
 		KBEngine.INFO_MSG('connect success!') ; 
+		KBEngine.Event.fire("onConnectStatus", true);
 	}
 
 	this.onerror = function(evt)
 	{  
 		KBEngine.ERROR_MSG('connect error:' + evt.data);
+		KBEngine.Event.fire("onConnectStatus", false);
 	}
 	
 	this.onmessage = function(msg)
@@ -1768,7 +1807,7 @@ KBEngine.KBEngineApp = function()
 	this.onclose = function()
 	{  
 		KBEngine.INFO_MSG('connect close:' + g_kbengine.currserver);
-		
+		KBEngine.Event.fire("onDisableConnect");
 		//if(g_kbengine.currserver != "loginapp")
 		//	g_kbengine.reset();
 	}
@@ -1819,6 +1858,8 @@ KBEngine.KBEngineApp = function()
 	this.onOpenLoginapp_login = function()
 	{  
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_login: successfully!");
+		KBEngine.Event.fire("onConnectStatus", true);
+		
 		g_kbengine.currserver = "loginapp";
 		g_kbengine.currstate = "login";
 		
@@ -1839,6 +1880,7 @@ KBEngine.KBEngineApp = function()
 	
 	this.onOpenLoginapp_createAccount = function()
 	{  
+		KBEngine.Event.fire("onConnectStatus", true);
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_createAccount: successfully!");
 		g_kbengine.currserver = "loginapp";
 		g_kbengine.currstate = "createAccount";
