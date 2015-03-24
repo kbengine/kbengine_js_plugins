@@ -120,6 +120,61 @@ KBEngine.WARNING_MSG = function(s)
 }
 
 /*-----------------------------------------------------------------------------------------
+												event
+-----------------------------------------------------------------------------------------*/
+KBEngine.Event = function()
+{
+	this._events = {};
+	
+	this.register = function(evtName, callbackfn)
+	{
+		var evtlst = this._events[evtName];
+		if(evtlst == undefined)
+		{
+			evtlst = [];
+			this._events[evtName] = evtlst;
+		}
+		
+		evtlst.push(callbackfn);
+	}
+	
+	this.deregister = function(evtName, callbackfn)
+	{
+	}
+	
+	this.fire = function()
+	{
+		if(arguments.length < 1)
+		{
+			KBEngine.ERROR_MSG('KBEngine.Event::fire: not fount eventName!');  
+			return;
+		}
+		
+		var evtName = arguments[0];
+		delete arguments[0];
+		var evtlst = this._events[evtName];
+		if(evtlst == undefined)
+		{
+			return;			
+		}
+		
+		for(var i=0; i<evtlst.length; i++)
+		{
+			if(arguments.length < 1)
+			{
+				evtlst[i]();
+			}
+			else
+			{
+				evtlst[i](arguments);
+			}
+		}
+	}
+};
+
+KBEngine.Event = new KBEngine.Event();
+
+/*-----------------------------------------------------------------------------------------
 												memorystream
 -----------------------------------------------------------------------------------------*/
 KBEngine.MemoryStream = function(size_or_buffer)
@@ -1774,6 +1829,7 @@ KBEngine.KBEngineApp = function()
 			bundle.send(g_kbengine);
 			g_kbengine.socket.onmessage = g_kbengine.Client_onImportClientMessages;  
 			KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_login: start importClientMessages ...");
+			KBEngine.Event.fire("Loginapp_importClientMessages");
 		}
 		else
 		{
@@ -1794,6 +1850,7 @@ KBEngine.KBEngineApp = function()
 			bundle.send(g_kbengine);
 			g_kbengine.socket.onmessage = g_kbengine.Client_onImportClientMessages;  
 			KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_createAccount: start importClientMessages ...");
+			KBEngine.Event.fire("Loginapp_importClientMessages");
 		}
 		else
 		{
@@ -1828,6 +1885,7 @@ KBEngine.KBEngineApp = function()
 				var bundle = new KBEngine.Bundle();
 				bundle.newMessage(KBEngine.messages.Baseapp_importClientEntityDef);
 				bundle.send(g_kbengine);
+				KBEngine.Event.fire("Baseapp_importClientEntityDef");
 			}
 			else
 			{
@@ -2041,7 +2099,7 @@ KBEngine.KBEngineApp = function()
 			
 			try
 			{
-				defmethod = eval(scriptmethod_name);
+				defmethod = eval("KBEngine." + scriptmethod_name);
 			}
 			catch(e)
 			{
@@ -2084,12 +2142,14 @@ KBEngine.KBEngineApp = function()
 	{
 		this.serverVersion = stream.readString();
 		KBEngine.ERROR_MSG("Client_onVersionNotMatch: verInfo=" + g_kbengine.clientVersion + " not match(server: " + this.serverVersion + ")");
+		KBEngine.Event.fire("onVersionNotMatch", this.clientVersion, this.serverVersion);
 	}
 
 	this.Client_onScriptVersionNotMatch = function(stream)
 	{
 		this.serverScriptVersion = stream.readString();
 		KBEngine.ERROR_MSG("Client_onScriptVersionNotMatch: verInfo=" + g_kbengine.clientScriptVersion + " not match(server: " + this.serverScriptVersion + ")");
+		KBEngine.Event.fire("onScriptVersionNotMatch", this.clientScriptVersion, this.serverScriptVersion);
 	}
 	
 	this.onImportEntityDefCompleted = function()
@@ -2293,6 +2353,7 @@ KBEngine.KBEngineApp = function()
 			bundle.newMessage(KBEngine.messages.Baseapp_importClientMessages);
 			bundle.send(g_kbengine);
 			g_kbengine.socket.onmessage = g_kbengine.Client_onImportClientMessages;  
+			KBEngine.Event.fire("Baseapp_importClientMessages");
 		}
 		else
 		{
@@ -2304,6 +2365,7 @@ KBEngine.KBEngineApp = function()
 	{  
 		if(noconnect)
 		{
+			KBEngine.Event.fire("login_baseapp");
 			KBEngine.INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + g_kbengine.ip + ":" + g_kbengine.port + "!");
 			g_kbengine.connect("ws://" + g_kbengine.ip + ":" + g_kbengine.port);
 			g_kbengine.socket.onopen = g_kbengine.onOpenBaseapp;  
@@ -2320,6 +2382,7 @@ KBEngine.KBEngineApp = function()
 	
 	this.relogin_baseapp = function()
 	{  
+		KBEngine.Event.fire("onRelogin_baseapp");
 		KBEngine.INFO_MSG("KBEngineApp::relogin_baseapp: start connect to ws://" + g_kbengine.ip + ":" + g_kbengine.port + "!");
 		g_kbengine.connect("ws://" + g_kbengine.ip + ":" + g_kbengine.port);
 		g_kbengine.socket.onopen = g_kbengine.onReOpenBaseapp;  
@@ -2358,6 +2421,7 @@ KBEngine.KBEngineApp = function()
 		var failedcode = args.readUint16();
 		g_kbengine.serverdatas = args.readBlob();
 		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginFailed: failedcode(" + failedcode + "), datas(" + g_kbengine.serverdatas.length + ")!");
+		KBEngine.Event.fire("onLoginFailed", failedcode);
 	}
 	
 	this.Client_onLoginSuccessfully = function(args)
@@ -2377,12 +2441,14 @@ KBEngine.KBEngineApp = function()
 	this.Client_onLoginGatewayFailed = function(failedcode)
 	{
 		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginGatewayFailed: failedcode(" + failedcode + ")!");
+		KBEngine.Event.fire("onLoginGatewayFailed", failedcode);
 	}
 
 	this.Client_onReLoginGatewaySuccessfully = function(stream)
 	{
 		g_kbengine.entity_uuid = stream.readUint64();
 		KBEngine.ERROR_MSG("KBEngineApp::Client_onReLoginGatewaySuccessfully: " + g_kbengine.username);
+		KBEngine.Event.fire("onReLoginGatewaySuccessfully");
 	}
 	
 	this.entityclass = {};
@@ -2609,6 +2675,9 @@ KBEngine.KBEngineApp = function()
 			
 			entity.onInit();
 			entity.onEnterWorld();
+			
+			KBEngine.Event.fire("set_direction", entity);
+			KBEngine.Event.fire("set_position", entity);
 		}
 		else
 		{
@@ -2715,6 +2784,7 @@ KBEngine.KBEngineApp = function()
 	this.Client_onKicked = function(failedcode)
 	{
 		KBEngine.ERROR_MSG("KBEngineApp::Client_onKicked: failedcode(" + failedcode + ")!");
+		KBEngine.Event.fire("onKicked", failedcode);
 	}
 	
 	this.Client_onSetEntityPosAndDir = function(stream)
@@ -2734,6 +2804,9 @@ KBEngine.KBEngineApp = function()
 		entity.direction[0] = stream.readFloat();
 		entity.direction[1] = stream.readFloat();
 		entity.direction[2] = stream.readFloat();
+		
+		KBEngine.Event.fire("set_direction", entity);
+		KBEngine.Event.fire("set_position", entity);
 	}
 
 	this.Client_onCreateAccountResult = function(stream)
@@ -2747,6 +2820,7 @@ KBEngine.KBEngineApp = function()
 			return;
 		}
 
+		KBEngine.Event.fire("onCreateAccountResult", retcode, datas);
 		KBEngine.INFO_MSG("KBEngineApp::Client_onCreateAccountResult: " + g_kbengine.username + " create is successfully!");
 	}
 	
@@ -2775,6 +2849,7 @@ KBEngine.KBEngineApp = function()
 		
 		g_kbengine.spaceID = spaceID;
 		g_kbengine.spaceResPath = respath;
+		KBEngine.Event.fire("addSpaceGeometryMapping", respath);
 	}
 
 	this.clearSpace = function(isAll)
@@ -2833,6 +2908,8 @@ KBEngine.KBEngineApp = function()
 		
 		if(key == "_mapping")
 			g_kbengine.addSpaceGeometryMapping(spaceID, value);
+		
+		KBEngine.Event.fire("onSetSpaceData", spaceID, key, value);
 	}
 	
 	this.Client_delSpaceData = function(spaceID, key)
@@ -2840,6 +2917,7 @@ KBEngine.KBEngineApp = function()
 		KBEngine.INFO_MSG("KBEngineApp::Client_delSpaceData: spaceID(" + spaceID + "), key(" + key + ")!");
 		
 		delete g_kbengine.spacedata[key];
+		KBEngine.Event.fire("onDelSpaceData", spaceID, key);
 	}
 	
 	this.Client_getSpaceData = function(spaceID, key)
