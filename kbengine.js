@@ -84,16 +84,77 @@ KBEngine.KBE_FLT_MAX			= 3.402823466e+38;
 /*-----------------------------------------------------------------------------------------
 												number64bits
 -----------------------------------------------------------------------------------------*/
-KBEngine.INT64 = function(hi, lo)
+KBEngine.INT64 = function(lo, hi)
 {
-	this.hi = hi;
 	this.lo = lo;
+	this.hi = hi;
+	
+	this.sign = 1;
+	
+	if(hi >= 2147483648)
+	{
+		this.sign = -1;
+		if(this.lo > 0)
+		{
+			this.lo = (4294967296 - this.lo) & 0xffffffff;
+			this.hi = 4294967295 - this.hi;
+		}
+		else
+		{
+			this.lo = (4294967296 - this.lo) & 0xffffffff;
+			this.hi = 4294967296 - this.hi;
+		}
+	}
+	
+	this.toString = function()
+	{
+		var result = "";
+		
+		if(this.sign < 0)
+		{
+			result += "-"
+		}
+		
+		var low = this.lo.toString(16);
+		var high = this.hi.toString(16);
+		
+		if(this.hi > 0)
+		{
+			result += high;
+			for(var i = 8 - low.length; i > 0; --i)
+			{
+				result += "0";
+			}
+		}
+		result += low;
+		
+		return result;
+		
+	}
 }
 
-KBEngine.UINT64 = function(hi, lo)
+KBEngine.UINT64 = function(lo, hi)
 {
-	this.hi = hi;
 	this.lo = lo;
+	this.hi = hi;
+	
+	this.toString = function()
+	{
+		var low = this.lo.toString(16);
+		var high = this.hi.toString(16);
+		
+		var result = "";
+		if(this.hi > 0)
+		{
+			result += high;
+			for(var i = 8 - low.length; i > 0; --i)
+			{
+				result += "0";
+			}
+		}
+		result += low;
+		return result;
+	}
 }
 
 /*-----------------------------------------------------------------------------------------
@@ -106,7 +167,7 @@ KBEngine.INFO_MSG = function(s)
 
 KBEngine.DEBUG_MSG = function(s)
 {
-	console.info(s);
+	console.debug(s);
 }
 
 KBEngine.ERROR_MSG = function(s)
@@ -117,6 +178,79 @@ KBEngine.ERROR_MSG = function(s)
 KBEngine.WARNING_MSG = function(s)
 {
 	console.warn(s);
+}
+
+/*-----------------------------------------------------------------------------------------
+												string
+-----------------------------------------------------------------------------------------*/
+KBEngine.utf8ArrayToString = function(array)
+{
+    var out, i, len, c;
+    var char2, char3;
+
+    out = "";
+    len = array.length;
+    i = 0;
+
+    while(i < len)
+    {
+        c = array[i++];
+
+        switch(c >> 4)
+        {
+            case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
+            // 0xxxxxxx
+            out += String.fromCharCode(c);
+            break;
+            case 12: case 13:
+            // 110x xxxx   10xx xxxx
+            char2 = array[i++];
+            out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
+            break;
+            case 14:
+                // 1110 xxxx  10xx xxxx  10xx xxxx
+                char2 = array[i++];
+                char3 = array[i++];
+                out += String.fromCharCode(((c & 0x0F) << 12) |
+                    ((char2 & 0x3F) << 6) |
+                    ((char3 & 0x3F) << 0));
+                break;
+        }
+    }
+    
+    return out;
+}
+
+KBEngine.stringToUTF8Bytes = function(str) 
+{
+    var utf8 = [];
+    for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+            utf8.push(0xc0 | (charcode >> 6), 
+                      0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+            utf8.push(0xe0 | (charcode >> 12), 
+                      0x80 | ((charcode>>6) & 0x3f), 
+                      0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+            i++;
+            // UTF-16 encodes 0x10000-0x10FFFF by
+            // subtracting 0x10000 and splitting the
+            // 20 bits of 0x0-0xFFFFF into two halves
+            charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+                      | (str.charCodeAt(i) & 0x3ff))
+            utf8.push(0xf0 | (charcode >>18), 
+                      0x80 | ((charcode>>12) & 0x3f), 
+                      0x80 | ((charcode>>6) & 0x3f), 
+                      0x80 | (charcode & 0x3f));
+        }
+    }
+    return utf8;
 }
 
 /*-----------------------------------------------------------------------------------------
@@ -152,7 +286,7 @@ KBEngine.Event = function()
 		evtlst.push(info);
 	}
 	
-	this.deregister = function(evtName, classinst, callbackfn)
+	this.deregister = function(evtName, classinst)
 	{
 		for(itemkey in this._events)
 		{
@@ -165,7 +299,7 @@ KBEngine.Event = function()
 					var info = evtlst[i];
 					if(info.classinst == classinst)
 					{
-						delete evtlst[i];
+						evtlst.splice(i, 1);
 						found = true;
 						break;
 					}
@@ -184,15 +318,18 @@ KBEngine.Event = function()
 			KBEngine.ERROR_MSG('KBEngine.Event::fire: not found eventName!');  
 			return;
 		}
-		
+
 		var evtName = arguments[0];
-		delete arguments[0];
 		var evtlst = this._events[evtName];
 		
 		if(evtlst == undefined)
 		{
 			return;			
 		}
+		
+		var ars = [];
+		for(var i=1; i<arguments.length; i++) 
+			ars.push(arguments[i]);
 		
 		for(var i=0; i<evtlst.length; i++)
 		{
@@ -203,7 +340,7 @@ KBEngine.Event = function()
 			}
 			else
 			{
-				info.callbackfn.apply(info.classinst, arguments);
+				info.callbackfn.apply(info.classinst, ars);
 			}
 		}
 	}
@@ -254,7 +391,7 @@ KBEngine.MemoryStream = function(size_or_buffer)
 
 	this.readInt64 = function()
 	{
-		return new KBEngine.INT64(this.readInt32(), this.readInt32());
+		return new KBEngine.INT64(this.readUInt32(), this.readUInt32());
 	}
 	
 	this.readUint8 = function()
@@ -397,8 +534,8 @@ KBEngine.MemoryStream = function(size_or_buffer)
 
 	this.writeInt64 = function(v)
 	{
-		this.writeInt32(v.hi);
 		this.writeInt32(v.lo);
+		this.writeInt32(v.hi);
 	}
 	
 	this.writeUint8 = function(v)
@@ -422,8 +559,8 @@ KBEngine.MemoryStream = function(size_or_buffer)
 
 	this.writeUint64 = function(v)
 	{
-		this.writeUint32(v.hi);
 		this.writeUint32(v.lo);
+		this.writeUint32(v.hi);
 	}
 	
 	this.writeFloat = function(v)
@@ -982,7 +1119,7 @@ KBEngine.Message = function(id, name, length, argstype, args, handler)
 		}
 		else
 		{
-			this.handler.apply(g_kbengine, this.createFromStream(msgstream));
+			this.handler.apply(KBEngine.app, this.createFromStream(msgstream));
 		}
 	}
 }
@@ -1019,16 +1156,27 @@ KBEngine.Entity = KBEngine.Class.extend(
 		this.inWorld = false;
 	},
 
-	onInit : function()
+	__init__ : function()
 	{
 	},
-		
+
+	isPlayer : function()
+	{
+		return this.id == KBEngine.app.entity_id;
+	},
+
 	baseCall : function()
 	{
 		if(arguments.length < 1)
 		{
 			KBEngine.ERROR_MSG('KBEngine.Entity::baseCall: not fount interfaceName!');  
 			return;
+		}
+
+		if(this.base == undefined)
+		{
+			KBEngine.ERROR_MSG('KBEngine.Entity::cellCall: cell is None!');  
+			return;			
 		}
 		
 		var method = KBEngine.moduledefs[this.className].base_methods[arguments[0]];
@@ -1048,12 +1196,20 @@ KBEngine.Entity = KBEngine.Class.extend(
 		{
 			for(var i=0; i<args.length; i++)
 			{
-				args[i].addToStream(this.base.bundle, arguments[i + 1]);
+				if(args[i].isSameType(arguments[i + 1]))
+				{
+					args[i].addToStream(this.base.bundle, arguments[i + 1]);
+				}
+				else
+				{
+					throw new Error("KBEngine.Entity::baseCall: arg[" + i + "] is error!");
+				}
 			}
 		}
 		catch(e)
 		{
-			KBEngine.ERROR_MSG('KBEngine.Entity::baseCall: args is error!');  
+			KBEngine.ERROR_MSG(e.toString());
+			KBEngine.ERROR_MSG('KBEngine.Entity::baseCall: args is error!');
 			this.base.bundle = null;
 			return;
 		}
@@ -1067,6 +1223,12 @@ KBEngine.Entity = KBEngine.Class.extend(
 		{
 			KBEngine.ERROR_MSG('KBEngine.Entity::cellCall: not fount interfaceName!');  
 			return;
+		}
+		
+		if(this.cell == undefined)
+		{
+			KBEngine.ERROR_MSG('KBEngine.Entity::cellCall: cell is None!');  
+			return;			
 		}
 		
 		var method = KBEngine.moduledefs[this.className].cell_methods[arguments[0]];
@@ -1103,27 +1265,53 @@ KBEngine.Entity = KBEngine.Class.extend(
 	{
 		KBEngine.INFO_MSG(this.className + '::onEnterWorld: ' + this.id); 
 		this.inWorld = true;
+		
+		KBEngine.Event.fire("onEnterWorld", this);
 	},
 	
 	onLeaveWorld : function()
 	{
 		KBEngine.INFO_MSG(this.className + '::onLeaveWorld: ' + this.id); 
 		this.inWorld = false;
+		
+		KBEngine.Event.fire("onLeaveWorld", this);
 	},
 	
 	onEnterSpace : function()
 	{
 		KBEngine.INFO_MSG(this.className + '::onEnterSpace: ' + this.id); 
+		KBEngine.Event.fire("onEnterSpace", this);
 	},
 	
 	onLeaveSpace : function()
 	{
 		KBEngine.INFO_MSG(this.className + '::onLeaveSpace: ' + this.id); 
+		KBEngine.Event.fire("onLeaveSpace", this);
+	},
+
+	set_position : function(old)
+	{
+		// Dbg.DEBUG_MSG(className + "::set_position: " + old + " => " + v); 
+		
+		if(this.isPlayer())
+			KBEngine.app.entityServerPos(this.position);
+		
+		KBEngine.Event.fire("set_position", this);
+	},
+
+	onUpdateVolatileData : function()
+	{
+	},
+	
+	set_direction : function(old)
+	{
+		// Dbg.DEBUG_MSG(className + "::set_direction: " + old + " => " + v); 
+		KBEngine.Event.fire("set_direction", this);
 	}
 });
 
 /*-----------------------------------------------------------------------------------------
-												entity
+												mailbox
 -----------------------------------------------------------------------------------------*/
 KBEngine.MAILBOX_TYPE_CELL = 0;
 KBEngine.MAILBOX_TYPE_BASE = 1;
@@ -1133,7 +1321,7 @@ KBEngine.Mailbox = function()
 	this.id = 0;
 	this.className = "";
 	this.type = KBEngine.MAILBOX_TYPE_CELL;
-	this.networkInterface = g_kbengine;
+	this.networkInterface = KBEngine.app;
 	
 	this.bundle = null;
 	
@@ -1200,6 +1388,21 @@ KBEngine.DATATYPE_UINT8 = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		if(typeof(v) != "number")
+		{
+			return false;
+		}
+		
+		if(v < 0 || v > 0xff)
+		{
+			return false;
+		}
+		
+		return true;
+	}
 }
 
 KBEngine.DATATYPE_UINT16 = function()
@@ -1221,6 +1424,21 @@ KBEngine.DATATYPE_UINT16 = function()
 	this.parseDefaultValStr = function(v)
 	{
 		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		if(typeof(v) != "number")
+		{
+			return false;
+		}
+		
+		if(v < 0 || v > 0xffff)
+		{
+			return false;
+		}
+		
+		return true;
 	}
 }
 
@@ -1244,6 +1462,21 @@ KBEngine.DATATYPE_UINT32 = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		if(typeof(v) != "number")
+		{
+			return false;
+		}
+		
+		if(v < 0 || v > 0xffffffff)
+		{
+			return false;
+		}
+		
+		return true;
+	}
 }
 
 KBEngine.DATATYPE_UINT64 = function()
@@ -1265,6 +1498,11 @@ KBEngine.DATATYPE_UINT64 = function()
 	this.parseDefaultValStr = function(v)
 	{
 		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		return v instanceof KBEngine.UINT64;
 	}
 }
 
@@ -1288,6 +1526,21 @@ KBEngine.DATATYPE_INT8 = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		if(typeof(v) != "number")
+		{
+			return false;
+		}
+		
+		if(v < -0x80 || v > 0x7f)
+		{
+			return false;
+		}
+		
+		return true;
+	}
 }
 
 KBEngine.DATATYPE_INT16 = function()
@@ -1309,6 +1562,21 @@ KBEngine.DATATYPE_INT16 = function()
 	this.parseDefaultValStr = function(v)
 	{
 		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		if(typeof(v) != "number")
+		{
+			return false;
+		}
+		
+		if(v < -0x8000 || v > 0x7fff)
+		{
+			return false;
+		}
+		
+		return true;
 	}
 }
 
@@ -1332,6 +1600,21 @@ KBEngine.DATATYPE_INT32 = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		if(typeof(v) != "number")
+		{
+			return false;
+		}
+		
+		if(v < -0x80000000 || v > 0x7fffffff)
+		{
+			return false;
+		}
+		
+		return true;
+	}
 }
 
 KBEngine.DATATYPE_INT64 = function()
@@ -1353,6 +1636,11 @@ KBEngine.DATATYPE_INT64 = function()
 	this.parseDefaultValStr = function(v)
 	{
 		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		return v instanceof KBEngine.INT64;
 	}
 }
 
@@ -1376,6 +1664,11 @@ KBEngine.DATATYPE_FLOAT = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		return typeof(v) == "number";
+	}
 }
 
 KBEngine.DATATYPE_DOUBLE = function()
@@ -1398,6 +1691,11 @@ KBEngine.DATATYPE_DOUBLE = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		return typeof(v) == "number";
+	}
 }
 
 KBEngine.DATATYPE_STRING = function()
@@ -1419,6 +1717,11 @@ KBEngine.DATATYPE_STRING = function()
 	this.parseDefaultValStr = function(v)
 	{
 		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		return typeof(v) == "string";
 	}
 }
 
@@ -1468,6 +1771,29 @@ KBEngine.DATATYPE_VECTOR = function(size)
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		if(! v instanceof Array)
+		{
+			return false;
+		}
+		
+		if(this.itemsize != v.length)
+		{
+			return false;
+		}
+		
+		for(var i=0; i<this.itemsize; i++)
+		{
+			if(typeof(v[i]) != "number")
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
 }
 
 KBEngine.DATATYPE_PYTHON = function()
@@ -1488,6 +1814,11 @@ KBEngine.DATATYPE_PYTHON = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		return false;
+	}
 }
 
 KBEngine.DATATYPE_UNICODE = function()
@@ -1495,20 +1826,25 @@ KBEngine.DATATYPE_UNICODE = function()
 	this.bind = function()
 	{
 	}
-	
+
 	this.createFromStream = function(stream)
 	{
-		return KBEngine.reader.readBlob.call(stream);
+		return KBEngine.utf8ArrayToString(KBEngine.reader.readBlob.call(stream));
 	}
 	
 	this.addToStream = function(stream, v)
 	{
-		stream.writeBlob(v);
+		stream.writeBlob(KBEngine.stringToUTF8Bytes(v));
 	}
 	
 	this.parseDefaultValStr = function(v)
 	{
 		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		return typeof(v) == "string";
 	}
 }
 
@@ -1529,6 +1865,11 @@ KBEngine.DATATYPE_MAILBOX = function()
 	this.parseDefaultValStr = function(v)
 	{
 		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		return false;
 	}
 }
 
@@ -1555,6 +1896,11 @@ KBEngine.DATATYPE_BLOB = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		return true;
+	}
 }
 
 KBEngine.DATATYPE_ARRAY = function()
@@ -1563,10 +1909,8 @@ KBEngine.DATATYPE_ARRAY = function()
 	
 	this.bind = function()
 	{
-		if(!isNaN(this.type))
+		if(typeof(this.type) == "number")
 			this.type = KBEngine.datatypes[this.type];
-		else
-			this.type.bind();
 	}
 	
 	this.createFromStream = function(stream)
@@ -1596,6 +1940,19 @@ KBEngine.DATATYPE_ARRAY = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		for(var i=0; i<v.length; i++)
+		{
+			if(!this.type.isSameType(v[i]))
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
 }
 
 KBEngine.DATATYPE_FIXED_DICT = function()
@@ -1609,10 +1966,8 @@ KBEngine.DATATYPE_FIXED_DICT = function()
 		{
 			var utype = this.dicttype[itemkey];
 			
-			if(!isNaN(utype))
+			if(typeof(this.dicttype[itemkey]) == "number")
 				this.dicttype[itemkey] = KBEngine.datatypes[utype];
-			else
-				this.dicttype[itemkey].bind();
 		}
 	}
 	
@@ -1639,6 +1994,19 @@ KBEngine.DATATYPE_FIXED_DICT = function()
 	{
 		return eval(v);
 	}
+	
+	this.isSameType = function(v)
+	{
+		for(itemkey in this.dicttype)
+		{
+			if(!this.dicttype[itemkey].isSameType(v[itemkey]))
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
 }
 
 KBEngine.datatypes["UINT8"]		= new KBEngine.DATATYPE_UINT8();
@@ -1664,108 +2032,185 @@ KBEngine.datatypes["MAILBOX"]	= new KBEngine.DATATYPE_MAILBOX();
 KBEngine.datatypes["BLOB"]		= new KBEngine.DATATYPE_BLOB();
 
 /*-----------------------------------------------------------------------------------------
-												system
+												KBEngine args
 -----------------------------------------------------------------------------------------*/
-KBEngine.KBEngineApp = function()
+KBEngine.KBEngineArgs = function()
 {
+	this.ip = "127.0.0.1";
+	this.port = 20013;
+	this.updateHZ = 100;
+}
+
+/*-----------------------------------------------------------------------------------------
+												KBEngine app
+-----------------------------------------------------------------------------------------*/
+KBEngine.KBEngineApp = function(kbengineArgs)
+{
+	console.assert(KBEngine.app == null || KBEngine.app == undefined, "Assertion of KBEngine.app not is null");
+	
+	KBEngine.app = this;
+	
+	this.args = kbengineArgs;
+	
 	this.username = "testhtml51";
 	this.password = "123456";
 	this.loginappMessageImported = false;
 	this.baseappMessageImported = false;
+	this.serverErrorsDescrImported = false;
 	this.entitydefImported = false;
 	
+	
+	// 描述服务端返回的错误信息
+	KBEngine.ServerErr = function()
+	{
+		this.name = "";
+		this.descr = "";
+		this.id = 0;
+	}
+	
+	this.serverErrs = {};
+		
+	// 登录loginapp的地址
+	this.ip = this.args.ip;
+	this.port = this.args.port;
+	
+	// 服务端分配的baseapp地址
+	this.baseappIP = "";
+	this.baseappPort = 0;
+			
 	this.reset = function()
 	{  
 		this.socket = null;
-		this.ip = "127.0.0.1";
-		this.port = 20013;
+		
 		this.currserver = "loginapp";
 		this.currstate = "create";
+		
+		// 扩展数据
 		this.serverdatas = "";
 		this.clientdatas = "";
+		
+		// 版本信息
 		this.serverVersion = "";
 		this.serverScriptVersion = "";
 		this.serverProtocolMD5 = "";
 		this.serverEntityDefMD5 = "";
 		this.clientVersion = "0.4.0";
 		this.clientScriptVersion = "0.1.0";
+		
+		// player的相关信息
 		this.entity_uuid = null;
 		this.entity_id = 0;
 		this.entity_type = "";
+		
+		// 玩家是否在地面上
+		this.isOnGound = false;
+		
+		// 客户端所有的实体
 		this.entities = {};
 		this.entityIDAliasIDList = [];
+		
+		// 空间的信息
 		this.spacedata = {};
-		var dateObject = new Date();
-		this.lastticktime = dateObject.getTime();
 		this.spaceID = 0;
 		this.spaceResPath = "";
 		this.isLoadedGeometry = false;
-		this.isOnGound = false;
+		
+		var dateObject = new Date();
+		this.lastticktime = dateObject.getTime();
+
+		// 当前组件类别， 配套服务端体系
 		this.component = "client";
 	}
-	
-	this.reset();
+
+	this.installEvents = function()
+	{
+		KBEngine.Event.register("createAccount", this, "createAccount");
+		KBEngine.Event.register("login", this, "login");
+		KBEngine.Event.register("relogin_baseapp", this, "relogin_baseapp");
+	}
+
+	this.uninstallEvents = function()
+	{
+		KBEngine.Event.deregister("relogin_baseapp", this);
+		KBEngine.Event.deregister("login", this);
+		KBEngine.Event.deregister("createAccount", this);
+	}
 	
 	this.hello = function()
 	{  
 		var bundle = new KBEngine.Bundle();
 		
-		if(g_kbengine.currserver == "loginapp")
+		if(KBEngine.app.currserver == "loginapp")
 			bundle.newMessage(KBEngine.messages.Loginapp_hello);
 		else
 			bundle.newMessage(KBEngine.messages.Baseapp_hello);
 		
-		bundle.writeString(g_kbengine.clientVersion);
-		bundle.writeString(g_kbengine.clientScriptVersion);
-		bundle.writeBlob(g_kbengine.clientdatas);
-		bundle.send(g_kbengine);
+		bundle.writeString(KBEngine.app.clientVersion);
+		bundle.writeString(KBEngine.app.clientScriptVersion);
+		bundle.writeBlob(KBEngine.app.clientdatas);
+		bundle.send(KBEngine.app);
 	}
 
 	this.player = function()
 	{
-		return g_kbengine.entities[g_kbengine.entity_id];
+		return KBEngine.app.entities[KBEngine.app.entity_id];
 	}
 	
 	this.connect = function(addr)
 	{
-		try
-		{  
-			if(g_kbengine.socket != null)
-				g_kbengine.socket.close();
-		}
-		catch(e)
-		{ 
-		}
-		
-		g_kbengine.socket = null;
+		console.assert(KBEngine.app.socket == null, "Assertion of socket not is null");
 		
 		try
 		{  
-			g_kbengine.socket = new WebSocket(addr);  
+			KBEngine.app.socket = new WebSocket(addr);  
 		}
 		catch(e)
 		{  
 			KBEngine.ERROR_MSG('WebSocket init error!');  
+			KBEngine.Event.fire("onConnectStatus", false);
 			return;  
 		}
 		
-		g_kbengine.socket.binaryType = "arraybuffer";
-		g_kbengine.socket.onopen = g_kbengine.onopen;  
-		g_kbengine.socket.onerror = g_kbengine.onerror;  
-		g_kbengine.socket.onmessage = g_kbengine.onmessage;  
-		g_kbengine.socket.onclose = g_kbengine.onclose;
+		KBEngine.app.socket.binaryType = "arraybuffer";
+		KBEngine.app.socket.onopen = KBEngine.app.onopen;  
+		KBEngine.app.socket.onerror = KBEngine.app.onerror_before_onopen;  
+		KBEngine.app.socket.onmessage = KBEngine.app.onmessage;  
+		KBEngine.app.socket.onclose = KBEngine.app.onclose;
 	}
 
+	this.disconnect = function()
+	{
+		try
+		{  
+			if(KBEngine.app.socket != null)
+			{
+				KBEngine.app.socket.onclose = undefined;
+				KBEngine.app.socket.close();
+				KBEngine.app.socket = null;
+			}
+		}
+		catch(e)
+		{ 
+		}
+	}
+	
 	this.onopen = function()
 	{  
-		KBEngine.INFO_MSG('connect success!') ; 
+		KBEngine.INFO_MSG('connect success!');
+		KBEngine.app.socket.onerror = KBEngine.app.onerror_after_onopen;
 		KBEngine.Event.fire("onConnectStatus", true);
 	}
 
-	this.onerror = function(evt)
+	this.onerror_before_onopen = function(evt)
 	{  
 		KBEngine.ERROR_MSG('connect error:' + evt.data);
 		KBEngine.Event.fire("onConnectStatus", false);
+	}
+	
+	this.onerror_after_onopen = function(evt)
+	{
+		KBEngine.ERROR_MSG('connect error:' + evt.data);
+		KBEngine.Event.fire("onDisableConnect");
 	}
 	
 	this.onmessage = function(msg)
@@ -1780,7 +2225,7 @@ KBEngine.KBEngineApp = function()
 			
 			if(!msgHandler)
 			{
-				KBEngine.ERROR_MSG("KBEngineApp::onmessage[" + g_kbengine.currserver + "]: not found msg(" + msgid + ")!");
+				KBEngine.ERROR_MSG("KBEngineApp::onmessage[" + KBEngine.app.currserver + "]: not found msg(" + msgid + ")!");
 			}
 			else
 			{
@@ -1806,37 +2251,37 @@ KBEngine.KBEngineApp = function()
 
 	this.onclose = function()
 	{  
-		KBEngine.INFO_MSG('connect close:' + g_kbengine.currserver);
+		KBEngine.INFO_MSG('connect close:' + KBEngine.app.currserver);
 		KBEngine.Event.fire("onDisableConnect");
-		//if(g_kbengine.currserver != "loginapp")
-		//	g_kbengine.reset();
+		//if(KBEngine.app.currserver != "loginapp")
+		//	KBEngine.app.reset();
 	}
 
 	this.send = function(msg)
 	{
-		g_kbengine.socket.send(msg);
+		KBEngine.app.socket.send(msg);
 	}
 
 	this.close = function(){  
-		g_kbengine.socket.close();  
-		g_kbengine.reset();
+		KBEngine.app.socket.close();  
+		KBEngine.app.reset();
 	}
 	
 	this.update = function()
 	{
-		if(g_kbengine.socket == null)
+		if(KBEngine.app.socket == null)
 			return;
 
 		var dateObject = new Date();
-		if((dateObject.getTime() - g_kbengine.lastticktime) / 1000 > 15)
+		if((dateObject.getTime() - KBEngine.app.lastticktime) / 1000 > 15)
 		{
-			if(g_kbengine.currserver == "loginapp")
+			if(KBEngine.app.currserver == "loginapp")
 			{
 				if(KBEngine.messages.Loginapp_onClientActiveTick != undefined)
 				{
 					var bundle = new KBEngine.Bundle();
 					bundle.newMessage(KBEngine.messages.Loginapp_onClientActiveTick);
-					bundle.send(g_kbengine);
+					bundle.send(KBEngine.app);
 				}
 			}
 			else
@@ -1845,36 +2290,72 @@ KBEngine.KBEngineApp = function()
 				{
 					var bundle = new KBEngine.Bundle();
 					bundle.newMessage(KBEngine.messages.Baseapp_onClientActiveTick);
-					bundle.send(g_kbengine);
+					bundle.send(KBEngine.app);
 				}
 			}
 			
-			g_kbengine.lastticktime = dateObject.getTime();
+			KBEngine.app.lastticktime = dateObject.getTime();
 		}
 		
-		g_kbengine.updatePlayerToServer();
+		KBEngine.app.updatePlayerToServer();
 	}
-	
+
+	/*
+		通过错误id得到错误描述
+	*/
+	this.serverErr = function(id)
+	{
+		var e = KBEngine.app.serverErrs[id];
+		
+		if(e == undefined)
+		{
+			return "";
+		}
+
+		return e.name + " [" + e.descr + "]";
+	}
+
+	/*
+		服务端错误描述导入了
+	*/
+	this.Client_onImportServerErrorsDescr = function(stream)
+	{
+		var size = stream.readUint16();
+		while(size > 0)
+		{
+			size -= 1;
+			
+			var e = new KBEngine.ServerErr();
+			e.id = stream.readUint16();
+			e.name = KBEngine.utf8ArrayToString(stream.readBlob());
+			e.descr = KBEngine.utf8ArrayToString(stream.readBlob());
+			
+			KBEngine.app.serverErrs[e.id] = e;
+				
+			KBEngine.INFO_MSG("Client_onImportServerErrorsDescr: id=" + e.id + ", name=" + e.name + ", descr=" + e.descr);
+		}
+	}
+		
 	this.onOpenLoginapp_login = function()
 	{  
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_login: successfully!");
 		KBEngine.Event.fire("onConnectStatus", true);
 		
-		g_kbengine.currserver = "loginapp";
-		g_kbengine.currstate = "login";
+		KBEngine.app.currserver = "loginapp";
+		KBEngine.app.currstate = "login";
 		
-		if(!g_kbengine.loginappMessageImported)
+		if(!KBEngine.app.loginappMessageImported)
 		{
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Loginapp_importClientMessages);
-			bundle.send(g_kbengine);
-			g_kbengine.socket.onmessage = g_kbengine.Client_onImportClientMessages;  
+			bundle.send(KBEngine.app);
+			KBEngine.app.socket.onmessage = KBEngine.app.Client_onImportClientMessages;  
 			KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_login: start importClientMessages ...");
 			KBEngine.Event.fire("Loginapp_importClientMessages");
 		}
 		else
 		{
-			g_kbengine.onImportClientMessagesCompleted();
+			KBEngine.app.onImportClientMessagesCompleted();
 		}
 	}
 	
@@ -1882,56 +2363,65 @@ KBEngine.KBEngineApp = function()
 	{  
 		KBEngine.Event.fire("onConnectStatus", true);
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_createAccount: successfully!");
-		g_kbengine.currserver = "loginapp";
-		g_kbengine.currstate = "createAccount";
+		KBEngine.app.currserver = "loginapp";
+		KBEngine.app.currstate = "createAccount";
 		
-		if(!g_kbengine.loginappMessageImported)
+		if(!KBEngine.app.loginappMessageImported)
 		{
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Loginapp_importClientMessages);
-			bundle.send(g_kbengine);
-			g_kbengine.socket.onmessage = g_kbengine.Client_onImportClientMessages;  
+			bundle.send(KBEngine.app);
+			KBEngine.app.socket.onmessage = KBEngine.app.Client_onImportClientMessages;  
 			KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_createAccount: start importClientMessages ...");
 			KBEngine.Event.fire("Loginapp_importClientMessages");
 		}
 		else
 		{
-			g_kbengine.onImportClientMessagesCompleted();
+			KBEngine.app.onImportClientMessagesCompleted();
 		}
 	}
 	
 	this.onImportClientMessagesCompleted = function()
 	{
 		KBEngine.INFO_MSG("KBEngineApp::onImportClientMessagesCompleted: successfully!");
-		g_kbengine.socket.onmessage = g_kbengine.onmessage; 
-		g_kbengine.hello();
+		KBEngine.app.socket.onmessage = KBEngine.app.onmessage; 
+		KBEngine.app.hello();
 		
-		if(g_kbengine.currserver == "loginapp")
+		if(KBEngine.app.currserver == "loginapp")
 		{
-			if(g_kbengine.currstate == "login")
-				g_kbengine.login_loginapp(false);
-			else if(g_kbengine.currstate == "resetpassword")
-				g_kbengine.resetpassword_loginapp(false);
+			if(!KBEngine.app.serverErrorsDescrImported)
+			{
+				KBEngine.INFO_MSG("KBEngine::onImportClientMessagesCompleted(): send importServerErrorsDescr!");
+				KBEngine.app.serverErrorsDescrImported = true;
+				var bundle = new KBEngine.Bundle();
+				bundle.newMessage(KBEngine.messages.Loginapp_importServerErrorsDescr);
+				bundle.send(KBEngine.app);
+			}
+							
+			if(KBEngine.app.currstate == "login")
+				KBEngine.app.login_loginapp(false);
+			else if(KBEngine.app.currstate == "resetpassword")
+				KBEngine.app.resetpassword_loginapp(false);
 			else
-				g_kbengine.createAccount_loginapp(false);
+				KBEngine.app.createAccount_loginapp(false);
 			
-			g_kbengine.loginappMessageImported = true;
+			KBEngine.app.loginappMessageImported = true;
 		}
 		else
 		{
-			g_kbengine.baseappMessageImported = true;
+			KBEngine.app.baseappMessageImported = true;
 			
-			if(!g_kbengine.entitydefImported)
+			if(!KBEngine.app.entitydefImported)
 			{
 				KBEngine.INFO_MSG("KBEngineApp::onImportClientMessagesCompleted: start importEntityDef ...");
 				var bundle = new KBEngine.Bundle();
 				bundle.newMessage(KBEngine.messages.Baseapp_importClientEntityDef);
-				bundle.send(g_kbengine);
+				bundle.send(KBEngine.app);
 				KBEngine.Event.fire("Baseapp_importClientEntityDef");
 			}
 			else
 			{
-				g_kbengine.onImportEntityDefCompleted();
+				KBEngine.app.onImportEntityDefCompleted();
 			}
 		}
 	}
@@ -1986,12 +2476,12 @@ KBEngine.KBEngineApp = function()
 		while(aliassize > 0)
 		{
 			aliassize--;
-			g_kbengine.createDataTypeFromStream(stream, true);
+			KBEngine.app.createDataTypeFromStream(stream, true);
 		};
 	
 		for(datatype in KBEngine.datatypes)
 		{
-			if(isNaN(datatype) && KBEngine.datatypes[datatype] != undefined)
+			if(KBEngine.datatypes[datatype] != undefined)
 			{
 				KBEngine.datatypes[datatype].bind();
 			}
@@ -2177,28 +2667,28 @@ KBEngine.KBEngineApp = function()
 			};
 		}
 		
-		g_kbengine.onImportEntityDefCompleted();
+		KBEngine.app.onImportEntityDefCompleted();
 	}
 
 	this.Client_onVersionNotMatch = function(stream)
 	{
 		this.serverVersion = stream.readString();
-		KBEngine.ERROR_MSG("Client_onVersionNotMatch: verInfo=" + g_kbengine.clientVersion + " not match(server: " + this.serverVersion + ")");
+		KBEngine.ERROR_MSG("Client_onVersionNotMatch: verInfo=" + KBEngine.app.clientVersion + " not match(server: " + KBEngine.app.serverVersion + ")");
 		KBEngine.Event.fire("onVersionNotMatch", this.clientVersion, this.serverVersion);
 	}
 
 	this.Client_onScriptVersionNotMatch = function(stream)
 	{
 		this.serverScriptVersion = stream.readString();
-		KBEngine.ERROR_MSG("Client_onScriptVersionNotMatch: verInfo=" + g_kbengine.clientScriptVersion + " not match(server: " + this.serverScriptVersion + ")");
+		KBEngine.ERROR_MSG("Client_onScriptVersionNotMatch: verInfo=" + KBEngine.app.clientScriptVersion + " not match(server: " + KBEngine.app.serverScriptVersion + ")");
 		KBEngine.Event.fire("onScriptVersionNotMatch", this.clientScriptVersion, this.serverScriptVersion);
 	}
 	
 	this.onImportEntityDefCompleted = function()
 	{
 		KBEngine.INFO_MSG("KBEngineApp::onImportEntityDefCompleted: successfully!");
-		g_kbengine.entitydefImported = true;
-		g_kbengine.login_baseapp(false);
+		KBEngine.app.entitydefImported = true;
+		KBEngine.app.login_baseapp(false);
 	}
 	
 	this.Client_onImportClientMessages = function(msg)
@@ -2233,10 +2723,10 @@ KBEngine.KBEngineApp = function()
 				var isClientMethod = msgname.indexOf("Client_") >= 0;
 				if(isClientMethod)
 				{
-					handler = g_kbengine[msgname];
+					handler = KBEngine.app[msgname];
 					if(handler == null || handler == undefined)
 					{
-						KBEngine.WARNING_MSG("KBEngineApp::onImportClientMessages[" + g_kbengine.currserver + "]: interface(" + msgname + "/" + msgid + ") no implement!");
+						KBEngine.WARNING_MSG("KBEngineApp::onImportClientMessages[" + KBEngine.app.currserver + "]: interface(" + msgname + "/" + msgid + ") no implement!");
 						handler = null;
 					}
 					else
@@ -2252,15 +2742,15 @@ KBEngine.KBEngineApp = function()
 					if(isClientMethod)
 						KBEngine.clientmessages[msgid] = KBEngine.messages[msgname];
 					else
-						KBEngine.messages[g_kbengine.currserver][msgid] = KBEngine.messages[msgname];
+						KBEngine.messages[KBEngine.app.currserver][msgid] = KBEngine.messages[msgname];
 				}
 				else
 				{
-					KBEngine.messages[g_kbengine.currserver][msgid] = new KBEngine.Message(msgid, msgname, msglen, argtype, argstypes, handler);
+					KBEngine.messages[KBEngine.app.currserver][msgid] = new KBEngine.Message(msgid, msgname, msglen, argtype, argstypes, handler);
 				}
 			};
 
-			g_kbengine.onImportClientMessagesCompleted();
+			KBEngine.app.onImportClientMessagesCompleted();
 		}
 		else
 			KBEngine.ERROR_MSG("KBEngineApp::onmessage: not found msg(" + msgid + ")!");
@@ -2268,28 +2758,28 @@ KBEngine.KBEngineApp = function()
 	
 	this.createAccount = function(username, password)
 	{  
-		g_kbengine.username = username;
-		g_kbengine.password = password;
+		KBEngine.app.username = username;
+		KBEngine.app.password = password;
 		
-		g_kbengine.createAccount_loginapp(true);
+		KBEngine.app.createAccount_loginapp(true);
 	}
 	
 	this.createAccount_loginapp = function(noconnect)
 	{  
 		if(noconnect)
 		{
-			KBEngine.INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + g_kbengine.ip + ":" + g_kbengine.port + "!");
-			g_kbengine.connect("ws://" + g_kbengine.ip + ":" + g_kbengine.port);
-			g_kbengine.socket.onopen = g_kbengine.onOpenLoginapp_createAccount;  
+			KBEngine.INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + KBEngine.app.ip + ":" + KBEngine.app.port + "!");
+			KBEngine.app.connect("ws://" + KBEngine.app.ip + ":" + KBEngine.app.port);
+			KBEngine.app.socket.onopen = KBEngine.app.onOpenLoginapp_createAccount;  
 		}
 		else
 		{
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Loginapp_reqCreateAccount);
-			bundle.writeString(g_kbengine.username);
-			bundle.writeString(g_kbengine.password);
+			bundle.writeString(KBEngine.app.username);
+			bundle.writeString(KBEngine.app.password);
 			bundle.writeBlob("");
-			bundle.send(g_kbengine);
+			bundle.send(KBEngine.app);
 		}
 	}
 	
@@ -2297,37 +2787,37 @@ KBEngine.KBEngineApp = function()
 	{  
 		var bundle = new KBEngine.Bundle();
 		bundle.newMessage(KBEngine.messages.Baseapp_reqAccountBindEmail);
-		bundle.writeInt32(g_kbengine.entity_id);
-		bundle.writeString(g_kbengine.password);
+		bundle.writeInt32(KBEngine.app.entity_id);
+		bundle.writeString(KBEngine.app.password);
 		bundle.writeString(mailstr);
-		bundle.send(g_kbengine);
+		bundle.send(KBEngine.app);
 	}
 	
 	this.new_password = function(oldpassword, newpassword)
 	{
 		var bundle = new KBEngine.Bundle();
 		bundle.newMessage(KBEngine.messages.Baseapp_reqAccountNewPassword);
-		bundle.writeInt32(g_kbengine.entity_id);
+		bundle.writeInt32(KBEngine.app.entity_id);
 		bundle.writeString(oldpassword);
 		bundle.writeString(newpassword);
-		bundle.send(g_kbengine);
+		bundle.send(KBEngine.app);
 	}
 	
 	this.login = function(username, password)
 	{  
-		g_kbengine.username = username;
-		g_kbengine.password = password;
+		KBEngine.app.username = username;
+		KBEngine.app.password = password;
 		
-		g_kbengine.login_loginapp(true);
+		KBEngine.app.login_loginapp(true);
 	}
 	
 	this.login_loginapp = function(noconnect)
 	{  
 		if(noconnect)
 		{
-			KBEngine.INFO_MSG("KBEngineApp::login_loginapp: start connect to ws://" + g_kbengine.ip + ":" + g_kbengine.port + "!");
-			g_kbengine.connect("ws://" + g_kbengine.ip + ":" + g_kbengine.port);
-			g_kbengine.socket.onopen = g_kbengine.onOpenLoginapp_login;  
+			KBEngine.INFO_MSG("KBEngineApp::login_loginapp: start connect to ws://" + KBEngine.app.ip + ":" + KBEngine.app.port + "!");
+			KBEngine.app.connect("ws://" + KBEngine.app.ip + ":" + KBEngine.app.port);
+			KBEngine.app.socket.onopen = KBEngine.app.onOpenLoginapp_login;  
 		}
 		else
 		{
@@ -2335,71 +2825,71 @@ KBEngine.KBEngineApp = function()
 			bundle.newMessage(KBEngine.messages.Loginapp_login);
 			bundle.writeInt8(3); // clientType
 			bundle.writeBlob("");
-			bundle.writeString(g_kbengine.username);
-			bundle.writeString(g_kbengine.password);
-			bundle.send(g_kbengine);
+			bundle.writeString(KBEngine.app.username);
+			bundle.writeString(KBEngine.app.password);
+			bundle.send(KBEngine.app);
 		}
 	}
 
 	this.onOpenLoginapp_resetpassword = function()
 	{  
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_resetpassword: successfully!");
-		g_kbengine.currserver = "loginapp";
-		g_kbengine.currstate = "resetpassword";
+		KBEngine.app.currserver = "loginapp";
+		KBEngine.app.currstate = "resetpassword";
 		
-		if(!g_kbengine.loginappMessageImported)
+		if(!KBEngine.app.loginappMessageImported)
 		{
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Loginapp_importClientMessages);
-			bundle.send(g_kbengine);
-			g_kbengine.socket.onmessage = g_kbengine.Client_onImportClientMessages;  
+			bundle.send(KBEngine.app);
+			KBEngine.app.socket.onmessage = KBEngine.app.Client_onImportClientMessages;  
 			KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_resetpassword: start importClientMessages ...");
 		}
 		else
 		{
-			g_kbengine.onImportClientMessagesCompleted();
+			KBEngine.app.onImportClientMessagesCompleted();
 		}
 	}
 
 	this.reset_password = function(username)
 	{ 
-		g_kbengine.username = username;
-		g_kbengine.resetpassword_loginapp(true);
+		KBEngine.app.username = username;
+		KBEngine.app.resetpassword_loginapp(true);
 	}
 	
 	this.resetpassword_loginapp = function(noconnect)
 	{  
 		if(noconnect)
 		{
-			KBEngine.INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + g_kbengine.ip + ":" + g_kbengine.port + "!");
-			g_kbengine.connect("ws://" + g_kbengine.ip + ":" + g_kbengine.port);
-			g_kbengine.socket.onopen = g_kbengine.onOpenLoginapp_resetpassword;  
+			KBEngine.INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + KBEngine.app.ip + ":" + KBEngine.app.port + "!");
+			KBEngine.app.connect("ws://" + KBEngine.app.ip + ":" + KBEngine.app.port);
+			KBEngine.app.socket.onopen = KBEngine.app.onOpenLoginapp_resetpassword;  
 		}
 		else
 		{
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Loginapp_reqAccountResetPassword);
-			bundle.writeString(g_kbengine.username);
-			bundle.send(g_kbengine);
+			bundle.writeString(KBEngine.app.username);
+			bundle.send(KBEngine.app);
 		}
 	}
 	
 	this.onOpenBaseapp = function()
 	{
 		KBEngine.INFO_MSG("KBEngineApp::onOpenBaseapp: successfully!");
-		g_kbengine.currserver = "baseapp";
+		KBEngine.app.currserver = "baseapp";
 		
-		if(!g_kbengine.baseappMessageImported)
+		if(!KBEngine.app.baseappMessageImported)
 		{
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Baseapp_importClientMessages);
-			bundle.send(g_kbengine);
-			g_kbengine.socket.onmessage = g_kbengine.Client_onImportClientMessages;  
+			bundle.send(KBEngine.app);
+			KBEngine.app.socket.onmessage = KBEngine.app.Client_onImportClientMessages;  
 			KBEngine.Event.fire("Baseapp_importClientMessages");
 		}
 		else
 		{
-			g_kbengine.onImportClientMessagesCompleted();
+			KBEngine.app.onImportClientMessagesCompleted();
 		}
 	}
 	
@@ -2408,76 +2898,77 @@ KBEngine.KBEngineApp = function()
 		if(noconnect)
 		{
 			KBEngine.Event.fire("login_baseapp");
-			KBEngine.INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + g_kbengine.ip + ":" + g_kbengine.port + "!");
-			g_kbengine.connect("ws://" + g_kbengine.ip + ":" + g_kbengine.port);
-			g_kbengine.socket.onopen = g_kbengine.onOpenBaseapp;  
+			KBEngine.INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
+			KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
+			KBEngine.app.socket.onopen = KBEngine.app.onOpenBaseapp;  
 		}
 		else
 		{
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Baseapp_loginGateway);
-			bundle.writeString(g_kbengine.username);
-			bundle.writeString(g_kbengine.password);
-			bundle.send(g_kbengine);
+			bundle.writeString(KBEngine.app.username);
+			bundle.writeString(KBEngine.app.password);
+			bundle.send(KBEngine.app);
 		}
 	}
 	
 	this.relogin_baseapp = function()
 	{  
 		KBEngine.Event.fire("onRelogin_baseapp");
-		KBEngine.INFO_MSG("KBEngineApp::relogin_baseapp: start connect to ws://" + g_kbengine.ip + ":" + g_kbengine.port + "!");
-		g_kbengine.connect("ws://" + g_kbengine.ip + ":" + g_kbengine.port);
-		g_kbengine.socket.onopen = g_kbengine.onReOpenBaseapp;  
+		KBEngine.INFO_MSG("KBEngineApp::relogin_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
+		KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
+		KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;  
 	}
 	
 	this.onReOpenBaseapp = function()
 	{
 		KBEngine.INFO_MSG("KBEngineApp::onReOpenBaseapp: successfully!");
-		g_kbengine.currserver = "baseapp";
+		KBEngine.app.currserver = "baseapp";
 		
 		var bundle = new KBEngine.Bundle();
 		bundle.newMessage(KBEngine.messages.Baseapp_reLoginGateway);
-		bundle.writeString(g_kbengine.username);
-		bundle.writeString(g_kbengine.password);
-		bundle.writeUint64(g_kbengine.entity_uuid);
-		bundle.writeInt32(g_kbengine.entity_id);
-		bundle.send(g_kbengine);
+		bundle.writeString(KBEngine.app.username);
+		bundle.writeString(KBEngine.app.password);
+		bundle.writeUint64(KBEngine.app.entity_uuid);
+		bundle.writeInt32(KBEngine.app.entity_id);
+		bundle.send(KBEngine.app);
 	}
 	
 	this.Client_onHelloCB = function(args)
 	{
-		g_kbengine.serverVersion = args.readString();
-		g_kbengine.serverScriptVersion = args.readString();
-		g_kbengine.serverProtocolMD5 = args.readString();
-		g_kbengine.serverEntityDefMD5 = args.readString();
+		KBEngine.app.serverVersion = args.readString();
+		KBEngine.app.serverScriptVersion = args.readString();
+		KBEngine.app.serverProtocolMD5 = args.readString();
+		KBEngine.app.serverEntityDefMD5 = args.readString();
 		
 		var ctype = args.readInt32();
 		
-		KBEngine.INFO_MSG("KBEngineApp::Client_onHelloCB: verInfo(" + g_kbengine.serverVersion + "), scriptVerInfo(" + 
-			g_kbengine.serverScriptVersion + "), serverProtocolMD5(" + g_kbengine.serverProtocolMD5 + "), serverEntityDefMD5(" + 
-			g_kbengine.serverEntityDefMD5 + "), ctype(" + ctype + ")!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onHelloCB: verInfo(" + KBEngine.app.serverVersion + "), scriptVerInfo(" + 
+			KBEngine.app.serverScriptVersion + "), serverProtocolMD5(" + KBEngine.app.serverProtocolMD5 + "), serverEntityDefMD5(" + 
+			KBEngine.app.serverEntityDefMD5 + "), ctype(" + ctype + ")!");
 	}
 	
 	this.Client_onLoginFailed = function(args)
 	{
 		var failedcode = args.readUint16();
-		g_kbengine.serverdatas = args.readBlob();
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginFailed: failedcode(" + failedcode + "), datas(" + g_kbengine.serverdatas.length + ")!");
+		KBEngine.app.serverdatas = args.readBlob();
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginFailed: failedcode(" + failedcode + "), datas(" + KBEngine.app.serverdatas.length + ")!");
 		KBEngine.Event.fire("onLoginFailed", failedcode);
 	}
 	
 	this.Client_onLoginSuccessfully = function(args)
 	{
 		var accountName = args.readString();
-		g_kbengine.username = accountName;
-		g_kbengine.ip = args.readString();
-		g_kbengine.port = args.readUint16();
-		g_kbengine.serverdatas = args.readBlob();
+		KBEngine.app.username = accountName;
+		KBEngine.app.baseappIp = args.readString();
+		KBEngine.app.baseappPort = args.readUint16();
+		KBEngine.app.serverdatas = args.readBlob();
 		
 		KBEngine.INFO_MSG("KBEngineApp::Client_onLoginSuccessfully: accountName(" + accountName + "), addr(" + 
-				g_kbengine.ip + ":" + g_kbengine.port + "), datas(" + g_kbengine.serverdatas.length + ")!");
+				KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "), datas(" + KBEngine.app.serverdatas.length + ")!");
 		
-		g_kbengine.login_baseapp(true);
+		KBEngine.app.disconnect();
+		KBEngine.app.login_baseapp(true);
 	}
 	
 	this.Client_onLoginGatewayFailed = function(failedcode)
@@ -2488,15 +2979,15 @@ KBEngine.KBEngineApp = function()
 
 	this.Client_onReLoginGatewaySuccessfully = function(stream)
 	{
-		g_kbengine.entity_uuid = stream.readUint64();
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onReLoginGatewaySuccessfully: " + g_kbengine.username);
+		KBEngine.app.entity_uuid = stream.readUint64();
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onReLoginGatewaySuccessfully: " + KBEngine.app.username);
 		KBEngine.Event.fire("onReLoginGatewaySuccessfully");
 	}
 	
 	this.entityclass = {};
 	this.getentityclass = function(entityType)
 	{
-		var runclass = g_kbengine.entityclass[entityType];
+		var runclass = KBEngine.app.entityclass[entityType];
 		if(runclass == undefined)
 		{
 			runclass = eval("KBEngine." + entityType);
@@ -2506,7 +2997,7 @@ KBEngine.KBEngineApp = function()
 				return runclass;
 			}
 			else
-				g_kbengine.entityclass[entityType] = runclass;
+				KBEngine.app.entityclass[entityType] = runclass;
 		}
 
 		return runclass;
@@ -2516,7 +3007,7 @@ KBEngine.KBEngineApp = function()
 	{
 		KBEngine.INFO_MSG("KBEngineApp::Client_onCreatedProxies: eid(" + eid + "), entityType(" + entityType + ")!");
 		
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		
 		if(entity != undefined)
 		{
@@ -2524,10 +3015,10 @@ KBEngine.KBEngineApp = function()
 			return;
 		}
 		
-		g_kbengine.entity_uuid = rndUUID;
-		g_kbengine.entity_id = eid;
+		KBEngine.app.entity_uuid = rndUUID;
+		KBEngine.app.entity_id = eid;
 		
-		var runclass = g_kbengine.getentityclass(entityType);
+		var runclass = KBEngine.app.getentityclass(entityType);
 		if(runclass == undefined)
 			return;
 		
@@ -2540,27 +3031,27 @@ KBEngine.KBEngineApp = function()
 		entity.base.className = entityType;
 		entity.base.type = KBEngine.MAILBOX_TYPE_BASE;
 		
-		g_kbengine.entities[eid] = entity;
+		KBEngine.app.entities[eid] = entity;
 		
-		entity.onInit();
+		entity.__init__();
 	}
 	
 	this.getAoiEntityIDFromStream = function(stream)
 	{
 		var id = 0;
-		if(g_kbengine.entityIDAliasIDList.Length > 255)
+		if(KBEngine.app.entityIDAliasIDList.Length > 255)
 		{
 			id = stream.readInt32();
 		}
 		else
 		{
-			id = g_kbengine.entityIDAliasIDList[stream.readUint8()];
+			id = KBEngine.app.entityIDAliasIDList[stream.readUint8()];
 		}
 		
 		// 如果为0且客户端上一步是重登陆或者重连操作并且服务端entity在断线期间一直处于在线状态
 		// 则可以忽略这个错误, 因为cellapp可能一直在向baseapp发送同步消息， 当客户端重连上时未等
 		// 服务端初始化步骤开始则收到同步信息, 此时这里就会出错。
-		if(g_kbengine.entityIDAliasIDList.length == 0)
+		if(KBEngine.app.entityIDAliasIDList.length == 0)
 			return 0;
 		
 		return id;
@@ -2568,7 +3059,7 @@ KBEngine.KBEngineApp = function()
 	
 	this.onUpdatePropertys_ = function(eid, stream)
 	{
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		
 		if(entity == undefined)
 		{
@@ -2611,19 +3102,19 @@ KBEngine.KBEngineApp = function()
 
 	this.Client_onUpdatePropertysOptimized = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
-		g_kbengine.onUpdatePropertys_(eid, stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
+		KBEngine.app.onUpdatePropertys_(eid, stream);
 	}
 	
 	this.Client_onUpdatePropertys = function(stream)
 	{
 		var eid = stream.readInt32();
-		g_kbengine.onUpdatePropertys_(eid, stream);
+		KBEngine.app.onUpdatePropertys_(eid, stream);
 	}
 
 	this.onRemoteMethodCall_ = function(eid, stream)
 	{
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		
 		if(entity == undefined)
 		{
@@ -2657,21 +3148,21 @@ KBEngine.KBEngineApp = function()
 	
 	this.Client_onRemoteMethodCallOptimized = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
-		g_kbengine.onRemoteMethodCall_(eid, stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
+		KBEngine.app.onRemoteMethodCall_(eid, stream);
 	}
 	
 	this.Client_onRemoteMethodCall = function(stream)
 	{
 		var eid = stream.readInt32();
-		g_kbengine.onRemoteMethodCall_(eid, stream);
+		KBEngine.app.onRemoteMethodCall_(eid, stream);
 	}
 	
 	this.Client_onEntityEnterWorld = function(stream)
 	{
 		var eid = stream.readInt32();
-		if(g_kbengine.entity_id > 0 && eid != g_kbengine.entity_id)
-			g_kbengine.entityIDAliasIDList.push(eid)
+		if(KBEngine.app.entity_id > 0 && eid != KBEngine.app.entity_id)
+			KBEngine.app.entityIDAliasIDList.push(eid)
 		
 		var entityType;
 		if(KBEngine.moduledefs.Length > 255)
@@ -2685,9 +3176,9 @@ KBEngine.KBEngineApp = function()
 			isOnGound = stream.readInt8();
 		
 		entityType = KBEngine.moduledefs[entityType].name;
-		KBEngine.INFO_MSG("KBEngineApp::Client_onEntityEnterWorld: " + entityType + "(" + eid + "), spaceID(" + g_kbengine.spaceID + "), isOnGound(" + isOnGound + ")!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onEntityEnterWorld: " + entityType + "(" + eid + "), spaceID(" + KBEngine.app.spaceID + "), isOnGound(" + isOnGound + ")!");
 		
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
 			entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
@@ -2697,7 +3188,7 @@ KBEngine.KBEngineApp = function()
 				return;
 			}
 			
-			var runclass = g_kbengine.getentityclass(entityType);
+			var runclass = KBEngine.app.getentityclass(entityType);
 			if(runclass == undefined)
 				return;
 			
@@ -2710,12 +3201,13 @@ KBEngine.KBEngineApp = function()
 			entity.cell.className = entityType;
 			entity.cell.type = KBEngine.MAILBOX_TYPE_CELL;
 			
-			g_kbengine.entities[eid] = entity;
+			KBEngine.app.entities[eid] = entity;
 			
-			g_kbengine.Client_onUpdatePropertys(entityMessage);
+			KBEngine.app.Client_onUpdatePropertys(entityMessage);
 			delete KBEngine.bufferedCreateEntityMessage[eid];
 			
-			entity.onInit();
+			entity.isOnGound = isOnGound > 0;
+			entity.__init__();
 			entity.onEnterWorld();
 			
 			KBEngine.Event.fire("set_direction", entity);
@@ -2725,13 +3217,19 @@ KBEngine.KBEngineApp = function()
 		{
 			if(!entity.inWorld)
 			{
+				entity.cell = new KBEngine.Mailbox();
+				entity.cell.id = eid;
+				entity.cell.className = entityType;
+				entity.cell.type = KBEngine.MAILBOX_TYPE_CELL;
+			
 				// 安全起见， 这里清空一下
 				// 如果服务端上使用giveClientTo切换控制权
 				// 之前的实体已经进入世界， 切换后的实体也进入世界， 这里可能会残留之前那个实体进入世界的信息
-				g_kbengine.entityIDAliasIDList = [];
-				g_kbengine.entities = {}
-				g_kbengine.entities[entity.id] = entity;
+				KBEngine.app.entityIDAliasIDList = [];
+				KBEngine.app.entities = {}
+				KBEngine.app.entities[entity.id] = entity;
 			
+				entity.isOnGound = isOnGound > 0;
 				entity.onEnterWorld();
 			}
 		}
@@ -2739,13 +3237,13 @@ KBEngine.KBEngineApp = function()
 
 	this.Client_onEntityLeaveWorldOptimized = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
-		g_kbengine.Client_onEntityLeaveWorld(eid);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
+		KBEngine.app.Client_onEntityLeaveWorld(eid);
 	}
 	
 	this.Client_onEntityLeaveWorld = function(eid)
 	{
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
 			KBEngine.ERROR_MSG("KBEngineApp::Client_onEntityLeaveWorld: entity(" + eid + ") not found!");
@@ -2755,22 +3253,22 @@ KBEngine.KBEngineApp = function()
 		if(entity.inWorld)
 			entity.onLeaveWorld();
 		
-		if(g_kbengine.entity_id > 0 && eid != g_kbengine.entity_id)
+		if(KBEngine.app.entity_id > 0 && eid != KBEngine.app.entity_id)
 		{
-			delete g_kbengine.entities[eid];
+			delete KBEngine.app.entities[eid];
 			
 			var newArray = [];
-			for(var i=0; i<g_kbengine.entityIDAliasIDList.length; i++){
-			    if(g_kbengine.entityIDAliasIDList[i] != eid){
-			       newArray.push(g_kbengine.entityIDAliasIDList[i]);
+			for(var i=0; i<KBEngine.app.entityIDAliasIDList.length; i++){
+			    if(KBEngine.app.entityIDAliasIDList[i] != eid){
+			       newArray.push(KBEngine.app.entityIDAliasIDList[i]);
 			     }
 			}
 			
-			g_kbengine.entityIDAliasIDList = newArray
+			KBEngine.app.entityIDAliasIDList = newArray
 		}
 		else
 		{
-			g_kbengine.clearSpace(false);
+			KBEngine.app.clearSpace(false);
 			entity.cell = null;
 		}
 	}
@@ -2779,7 +3277,7 @@ KBEngine.KBEngineApp = function()
 	{
 		KBEngine.INFO_MSG("KBEngineApp::Client_onEntityDestroyed: entity(" + eid + ")!");
 		
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
 			KBEngine.ERROR_MSG("KBEngineApp::Client_onEntityDestroyed: entity(" + eid + ") not found!");
@@ -2789,7 +3287,7 @@ KBEngine.KBEngineApp = function()
 		if(entity.inWorld)
 			entity.onLeaveWorld();
 		
-		delete g_kbengine.entities[eid];
+		delete KBEngine.app.entities[eid];
 	}
 	
 	this.Client_onEntityEnterSpace = function(stream)
@@ -2800,7 +3298,7 @@ KBEngine.KBEngineApp = function()
 		if(stream.length() > 0)
 			isOnGound = stream.readInt8();
 		
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
 			KBEngine.ERROR_MSG("KBEngineApp::Client_onEntityEnterSpace: entity(" + eid + ") not found!");
@@ -2812,14 +3310,14 @@ KBEngine.KBEngineApp = function()
 	
 	this.Client_onEntityLeaveSpace = function(eid)
 	{
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
 			KBEngine.ERROR_MSG("KBEngineApp::Client_onEntityLeaveSpace: entity(" + eid + ") not found!");
 			return;
 		}
 		
-		g_kbengine.clearSpace(false);
+		KBEngine.app.clearSpace(false);
 		entity.onLeaveSpace();
 	}
 
@@ -2832,7 +3330,7 @@ KBEngine.KBEngineApp = function()
 	this.Client_onSetEntityPosAndDir = function(stream)
 	{
 		var eid = stream.readInt32();
-		var entity = g_kbengine.entities[eid];
+		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
 			KBEngine.ERROR_MSG("KBEngineApp::Client_onSetEntityPosAndDir: entity(" + eid + ") not found!");
@@ -2858,18 +3356,18 @@ KBEngine.KBEngineApp = function()
 		
 		if(retcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onCreateAccountResult: " + g_kbengine.username + " create is failed! code=" + retcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onCreateAccountResult: " + KBEngine.app.username + " create is failed! code=" + retcode + "!");
 			return;
 		}
 
 		KBEngine.Event.fire("onCreateAccountResult", retcode, datas);
-		KBEngine.INFO_MSG("KBEngineApp::Client_onCreateAccountResult: " + g_kbengine.username + " create is successfully!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onCreateAccountResult: " + KBEngine.app.username + " create is successfully!");
 	}
 	
 	this.updatePlayerToServer = function()
 	{
-		player = g_kbengine.player();
-		if(player == undefined || player.inWorld == false || g_kbengine.spaceID == 0)
+		player = KBEngine.app.player();
+		if(player == undefined || player.inWorld == false || KBEngine.app.spaceID == 0)
 			return;
 		
 		var bundle = new KBEngine.Bundle();
@@ -2880,76 +3378,76 @@ KBEngine.KBEngineApp = function()
 		bundle.writeFloat(player.direction[2]);
 		bundle.writeFloat(player.direction[1]);
 		bundle.writeFloat(player.direction[0]);
-		bundle.writeUint8(g_kbengine.isOnGound);
-		bundle.writeUint8(g_kbengine.spaceID);
-		bundle.send(g_kbengine);
+		bundle.writeUint8(KBEngine.app.isOnGound);
+		bundle.writeUint8(KBEngine.app.spaceID);
+		bundle.send(KBEngine.app);
 	}
 	
 	this.addSpaceGeometryMapping = function(spaceID, respath)
 	{
 		KBEngine.INFO_MSG("KBEngineApp::addSpaceGeometryMapping: spaceID(" + spaceID + "), respath(" + respath + ")!");
 		
-		g_kbengine.spaceID = spaceID;
-		g_kbengine.spaceResPath = respath;
+		KBEngine.app.spaceID = spaceID;
+		KBEngine.app.spaceResPath = respath;
 		KBEngine.Event.fire("addSpaceGeometryMapping", respath);
 	}
 
 	this.clearSpace = function(isAll)
 	{
-		g_kbengine.entityIDAliasIDList = [];
-		g_kbengine.spacedata = {};
-		g_kbengine.isLoadedGeometry = false;
-		g_kbengine.spaceID = 0;
+		KBEngine.app.entityIDAliasIDList = [];
+		KBEngine.app.spacedata = {};
+		KBEngine.app.isLoadedGeometry = false;
+		KBEngine.app.spaceID = 0;
 		
 		if(!isAll)
 		{
-			var entity = g_kbengine.player();
+			var entity = KBEngine.app.player();
 			
-			for (var eid in g_kbengine.entities)  
+			for (var eid in KBEngine.app.entities)  
 			{ 
 				if(eid == entity.id)
 					continue;
 				
-			    g_kbengine.entities[eid].onLeaveWorld();
+			    KBEngine.app.entities[eid].onLeaveWorld();
 			}  
 				
-			g_kbengine.entities = {}
-			g_kbengine.entities[entity.id] = entity;
+			KBEngine.app.entities = {}
+			KBEngine.app.entities[entity.id] = entity;
 		}
 		else
 		{
-			for (var eid in g_kbengine.entities)  
+			for (var eid in KBEngine.app.entities)  
 			{ 
-			    g_kbengine.entities[eid].onLeaveWorld();
+			    KBEngine.app.entities[eid].onLeaveWorld();
 			}  
 				
-			g_kbengine.entities = {}
+			KBEngine.app.entities = {}
 		}
 	}
 		
 	this.Client_initSpaceData = function(stream)
 	{
-		g_kbengine.clearSpace(false);
+		KBEngine.app.clearSpace(false);
 		
-		g_kbengine.spaceID = stream.readInt32();
+		KBEngine.app.spaceID = stream.readInt32();
 		while(stream.length() > 0)
 		{
 			var key = stream.readString();
 			var value = stream.readString();
-			g_kbengine.Client_setSpaceData(g_kbengine.spaceID, key, value);
+			KBEngine.app.Client_setSpaceData(KBEngine.app.spaceID, key, value);
 		}
 		
-		KBEngine.INFO_MSG("KBEngineApp::Client_initSpaceData: spaceID(" + g_kbengine.spaceID + "), datas(" + g_kbengine.spacedata + ")!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_initSpaceData: spaceID(" + KBEngine.app.spaceID + "), datas(" + KBEngine.app.spacedata + ")!");
 	}
 	
 	this.Client_setSpaceData = function(spaceID, key, value)
 	{
 		KBEngine.INFO_MSG("KBEngineApp::Client_setSpaceData: spaceID(" + spaceID + "), key(" + key + "), value(" + value + ")!");
 		
-		g_kbengine.spacedata[key] = value;
+		KBEngine.app.spacedata[key] = value;
 		
 		if(key == "_mapping")
-			g_kbengine.addSpaceGeometryMapping(spaceID, value);
+			KBEngine.app.addSpaceGeometryMapping(spaceID, value);
 		
 		KBEngine.Event.fire("onSetSpaceData", spaceID, key, value);
 	}
@@ -2958,13 +3456,13 @@ KBEngine.KBEngineApp = function()
 	{
 		KBEngine.INFO_MSG("KBEngineApp::Client_delSpaceData: spaceID(" + spaceID + "), key(" + key + ")!");
 		
-		delete g_kbengine.spacedata[key];
+		delete KBEngine.app.spacedata[key];
 		KBEngine.Event.fire("onDelSpaceData", spaceID, key);
 	}
 	
 	this.Client_getSpaceData = function(spaceID, key)
 	{
-		return g_kbengine.spacedata[key];
+		return KBEngine.app.spacedata[key];
 	}
 	
 	this.Client_onUpdateBasePos = function(stream)
@@ -2984,8 +3482,8 @@ KBEngine.KBEngineApp = function()
 	
 	this.Client_onUpdateData = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
-		var entity = g_kbengine.entities[eid];
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
+		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
 			KBEngine.ERROR_MSG("KBEngineApp::Client_onUpdateData: entity(" + eid + ") not found!");
@@ -2995,84 +3493,84 @@ KBEngine.KBEngineApp = function()
 	
 	this.Client_onUpdateData_ypr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var y = stream.readInt8();
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, r);
 	}
 	
 	this.Client_onUpdateData_yp = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var y = stream.readInt8();
 		var p = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_yr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var y = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, r);
 	}
 	
 	this.Client_onUpdateData_pr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, r);
 	}
 	
 	this.Client_onUpdateData_y = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var y = stream.readPackY();
 		
-		g_kbengine._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_p = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var p = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_r = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r);
 	}
 	
 	this.Client_onUpdateData_xz = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xz_ypr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 
@@ -3080,91 +3578,91 @@ KBEngine.KBEngineApp = function()
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, r);
 	}
 	
 	this.Client_onUpdateData_xz_yp = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 
 		var y = stream.readInt8();
 		var p = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xz_yr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 
 		var y = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, r);
 	}
 	
 	this.Client_onUpdateData_xz_pr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, r);
 	}
 	
 	this.Client_onUpdateData_xz_y = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 
 		var y = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xz_p = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 
 		var p = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xz_r = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r);
 	}
 	
 	this.Client_onUpdateData_xyz = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xyz_ypr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
@@ -3173,12 +3671,12 @@ KBEngine.KBEngineApp = function()
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, r);
 	}
 	
 	this.Client_onUpdateData_xyz_yp = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
@@ -3186,12 +3684,12 @@ KBEngine.KBEngineApp = function()
 		var yaw = stream.readInt8();
 		var p = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xyz_yr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
@@ -3199,12 +3697,12 @@ KBEngine.KBEngineApp = function()
 		var yaw = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, r);
 	}
 	
 	this.Client_onUpdateData_xyz_pr = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
@@ -3212,43 +3710,43 @@ KBEngine.KBEngineApp = function()
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, x, y, z, KBEngine.KBE_FLT_MAX, p, r);
+		KBEngine.app._updateVolatileData(eid, x, y, z, KBEngine.KBE_FLT_MAX, p, r);
 	}
 	
 	this.Client_onUpdateData_xyz_y = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
 		
 		var yaw = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xyz_p = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
 		
 		var p = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this.Client_onUpdateData_xyz_r = function(stream)
 	{
-		var eid = g_kbengine.getAoiEntityIDFromStream(stream);
+		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
 		
 		var p = stream.readInt8();
 		
-		g_kbengine._updateVolatileData(eid, xz[0], y, xz[1], r, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], r, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
 	}
 	
 	this._updateVolatileData = function(entityID, x, y, z, yaw, pitch, roll)
@@ -3278,35 +3776,58 @@ KBEngine.KBEngineApp = function()
 	{
 		if(failcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountResetPasswordCB: " + g_kbengine.username + " is failed! code=" + failcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountResetPasswordCB: " + KBEngine.app.username + " is failed! code=" + failcode + "!");
 			return;
 		}
 
-		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountResetPasswordCB: " + g_kbengine.username + " is successfully!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountResetPasswordCB: " + KBEngine.app.username + " is successfully!");
 	}
 	
 	this.Client_onReqAccountBindEmailCB = function(failcode)
 	{
 		if(failcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountBindEmailCB: " + g_kbengine.username + " is failed! code=" + failcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountBindEmailCB: " + KBEngine.app.username + " is failed! code=" + failcode + "!");
 			return;
 		}
 
-		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountBindEmailCB: " + g_kbengine.username + " is successfully!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountBindEmailCB: " + KBEngine.app.username + " is successfully!");
 	}
 	
 	this.Client_onReqAccountNewPasswordCB = function(failcode)
 	{
 		if(failcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountNewPasswordCB: " + g_kbengine.username + " is failed! code=" + failcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountNewPasswordCB: " + KBEngine.app.username + " is failed! code=" + failcode + "!");
 			return;
 		}
 
-		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountNewPasswordCB: " + g_kbengine.username + " is successfully!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountNewPasswordCB: " + KBEngine.app.username + " is successfully!");
 	}
 }
 
-var g_kbengine = new KBEngine.KBEngineApp();
-setInterval(g_kbengine.update, 100);
+KBEngine.create = function(kbengineArgs)
+{
+	if(KBEngine.app != undefined)
+		return;
+	
+	new KBEngine.KBEngineApp(kbengineArgs);
+	
+	KBEngine.app.reset();
+	KBEngine.app.installEvents();
+	KBEngine.idInterval = setInterval(KBEngine.app.update, kbengineArgs.updateHZ);
+}
+
+KBEngine.destroy = function()
+{
+	if(KBEngine.idInterval != undefined)
+		clearInterval(KBEngine.idInterval);
+	
+	if(KBEngine.app == undefined)
+		return;
+		
+	KBEngine.app.uninstallEvents();
+	KBEngine.app.reset();
+	KBEngine.app = undefined;
+}
+
