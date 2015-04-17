@@ -365,6 +365,22 @@ KBEngine.MemoryStream = function(size_or_buffer)
 	this.rpos = 0;
 	this.wpos = 0;
 	
+	/*
+		union PackFloatXType
+		{
+			float	fv;
+			uint32	uv;
+			int		iv;
+		};	
+	*/
+	KBEngine.MemoryStream.PackFloatXType = function()
+	{
+		this._unionData = new ArrayBuffer(4);
+		this.fv = new Float32Array(this._unionData, 0, 1);
+		this.uv = new Uint32Array(this._unionData, 0, 1);
+		this.iv = new Int32Array(this._unionData, 0, 1);
+	};
+			
 	//---------------------------------------------------------------------------------
 	this.readInt8 = function()
 	{
@@ -496,13 +512,36 @@ KBEngine.MemoryStream = function(size_or_buffer)
 	
 	this.readPackXZ = function()
 	{
+		var xPackData = new KBEngine.MemoryStream.PackFloatXType();
+		var zPackData = new KBEngine.MemoryStream.PackFloatXType();
+		
+		xPackData.fv[0] = 0.0;
+		zPackData.fv[0] = 0.0;
+
+		xPackData.uv[0] = 0x40000000;
+		zPackData.uv[0] = 0x40000000;
+			
 		var v1 = this.readUint8();
 		var v2 = this.readUint8();
 		var v3 = this.readUint8();
-		
+
+		var data = 0;
+		data |= (v1 << 16);
+		data |= (v2 << 8);
+		data |= v3;
+
+		xPackData.uv[0] |= (data & 0x7ff000) << 3;
+		zPackData.uv[0] |= (data & 0x0007ff) << 15;
+
+		xPackData.fv[0] -= 2.0;
+		zPackData.fv[0] -= 2.0;
+	
+		xPackData.uv[0] |= (data & 0x800000) << 8;
+		zPackData.uv[0] |= (data & 0x000800) << 20;
+			
 		var data = new Array(2);
-		data[0] = 0.0;
-		data[1] = 0.0;
+		data[0] = xPackData.fv[0];
+		data[1] = zPackData.fv[0];
 		return data;
 	}
 
@@ -1138,24 +1177,76 @@ KBEngine.messages["onImportClientMessages"] = new KBEngine.Message(518, "onImpor
 KBEngine.bufferedCreateEntityMessage = {};
 
 /*-----------------------------------------------------------------------------------------
+												math
+-----------------------------------------------------------------------------------------*/
+KBEngine.Vector3 = KBEngine.Class.extend(
+{
+    ctor:function (x, y, z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+        return true;
+    },
+
+    distance : function(pos)
+    {
+    	var x = pos.x - this.x;
+    	var y = pos.y - this.y;
+    	var z = pos.z - this.z;
+    	return Math.sqrt(x * x + y * y + z * z);
+    }
+});
+
+KBEngine.clampf = function (value, min_inclusive, max_inclusive) 
+{
+    if (min_inclusive > max_inclusive) {
+        var temp = min_inclusive;
+        min_inclusive = max_inclusive;
+        max_inclusive = temp;
+    }
+    return value < min_inclusive ? min_inclusive : value < max_inclusive ? value : max_inclusive;
+};
+
+KBEngine.int82angle = function(angle/*int8*/, half/*bool*/)
+{
+	return angle * (Math.PI / (half ? 254.0 : 128.0));
+};
+
+KBEngine.angle2int8 = function(v/*float*/, half/*bool*/)
+{
+	var angle = 0;
+	if(!half)
+	{
+		angle = Math.floor((v * 128.0) / float(Math.PI) + 0.5);
+	}
+	else
+	{
+		angle = KBEngine.clampf(floorf( (v * 254.0) / float(Math.PI) + 0.5), -128.0, 127.0);
+	}
+
+	return angle;
+};
+
+/*-----------------------------------------------------------------------------------------
 												entity
 -----------------------------------------------------------------------------------------*/
 KBEngine.Entity = KBEngine.Class.extend(
 {
-	init : function()
-	{
+    ctor:function () {
 		this.id = 0;
 		this.className = "";
-		this.position = [0.0, 0.0, 0.0];
-		this.direction = [0.0, 0.0, 0.0];
+		this.position = new KBEngine.Vector3(0.0, 0.0, 0.0);
+		this.direction = new KBEngine.Vector3(0.0, 0.0, 0.0);
 		this.velocity = 0.0
 			
 		this.cell = null;
 		this.base = null;
 		
-		this.inWorld = false;
-	},
-
+		this.inWorld = false;		
+        return true;
+    },
+    
+    // 与服务端实体脚本中__init__类似, 代表初始化实体
 	__init__ : function()
 	{
 	},
@@ -1248,12 +1339,20 @@ KBEngine.Entity = KBEngine.Class.extend(
 		{
 			for(var i=0; i<args.length; i++)
 			{
-				bindwriter(args[i])(arguments[i + 1]);
+				if(args[i].isSameType(arguments[i + 1]))
+				{
+					args[i].addToStream(this.cell.bundle, arguments[i + 1]);
+				}
+				else
+				{
+					throw new Error("KBEngine.Entity::cellCall: arg[" + i + "] is error!");
+				}
 			}
 		}
 		catch(e)
 		{
-			KBEngine.ERROR_MSG('KBEngine.Entity::cellCall: args is error!');  
+			KBEngine.ERROR_MSG(e.toString());
+			KBEngine.ERROR_MSG('KBEngine.Entity::cellCall: args is error!');
 			this.cell.bundle = null;
 			return;
 		}
@@ -1294,7 +1393,11 @@ KBEngine.Entity = KBEngine.Class.extend(
 		// Dbg.DEBUG_MSG(className + "::set_position: " + old + " => " + v); 
 		
 		if(this.isPlayer())
-			KBEngine.app.entityServerPos(this.position);
+		{
+			KBEngine.app.entityServerPos.x = this.position.x;
+			KBEngine.app.entityServerPos.y = this.position.y;
+			KBEngine.app.entityServerPos.z = this.position.z;
+		}
 		
 		KBEngine.Event.fire("set_position", this);
 	},
@@ -1735,7 +1838,7 @@ KBEngine.DATATYPE_VECTOR = function(size)
 	
 	this.createFromStream = function(stream)
 	{
-		var data = new Array(this.itemsize);
+		
 		var size = KBEngine.reader.readUint32.call(stream);
 		if(size != this.itemsize)
 		{
@@ -1743,27 +1846,87 @@ KBEngine.DATATYPE_VECTOR = function(size)
 			return undefined;
 		}
 		
-		for(var i=0; i<this.itemsize; i++)
+		if(this.itemsize == 3)
 		{
 			if(KBEngine.CLIENT_NO_FLOAT)
-				data[i] = KBEngine.reader.readInt32.call(stream);
+			{
+				return new KBEngine.Vector3(KBEngine.reader.readInt32.call(stream), 
+					KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+			}
 			else
-				data[i] = KBEngine.reader.readFloat.call(stream);
+			{
+				return new KBEngine.Vector3(KBEngine.reader.readFloat.call(stream), 
+					KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+			}
+		}
+		else if(this.itemsize == 4)
+		{
+			if(KBEngine.CLIENT_NO_FLOAT)
+			{
+				return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), 
+					KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+			}
+			else
+			{
+				return new KBEngine.Vector4(KBEngine.reader.readFloat.call(stream), 
+					KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+			}
+		}
+		else if(this.itemsize == 2)
+		{
+			if(KBEngine.CLIENT_NO_FLOAT)
+			{
+				return new KBEngine.Vector2(KBEngine.reader.readInt32.call(stream), 
+					KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+			}
+			else
+			{
+				return new KBEngine.Vector2(KBEngine.reader.readFloat.call(stream), 
+					KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+			}
 		}
 		
-		return data;
+		return undefined;
 	}
 	
 	this.addToStream = function(stream, v)
 	{
 		stream.writeUint32(this.itemsize);
 		
-		for(var i=0; i<this.itemsize; i++)
+		if(KBEngine.CLIENT_NO_FLOAT)
+		{
+			stream.writeInt32(v.x);
+			stream.writeInt32(v.y);
+		}
+		else
+		{
+			stream.writeFloat(v.x);
+			stream.writeFloat(v.y);			
+		}
+		
+		if(this.itemsize == 3)
 		{
 			if(KBEngine.CLIENT_NO_FLOAT)
-				stream.writeInt32(v[i]);
+			{
+				stream.writeInt32(v.z);
+			}
 			else
-				stream.writeFloat(v[i]);
+			{
+				stream.writeFloat(v.z);
+			}
+		}
+		else if(this.itemsize == 4)
+		{
+			if(KBEngine.CLIENT_NO_FLOAT)
+			{
+				stream.writeInt32(v.z);
+				stream.writeInt32(v.w);
+			}
+			else
+			{
+				stream.writeFloat(v.z);
+				stream.writeFloat(v.w);			
+			}
 		}
 	}
 	
@@ -1774,19 +1937,23 @@ KBEngine.DATATYPE_VECTOR = function(size)
 	
 	this.isSameType = function(v)
 	{
-		if(! v instanceof Array)
+		if(this.itemsize == 2)
 		{
-			return false;
+			if(! v instanceof KBEngine.Vector2)
+			{
+				return false;
+			}
 		}
-		
-		if(this.itemsize != v.length)
+		else if(this.itemsize == 3)
 		{
-			return false;
+			if(! v instanceof KBEngine.Vector3)
+			{
+				return false;
+			}
 		}
-		
-		for(var i=0; i<this.itemsize; i++)
+		else if(this.itemsize == 4)
 		{
-			if(typeof(v[i]) != "number")
+			if(! v instanceof KBEngine.Vector4)
 			{
 				return false;
 			}
@@ -1839,7 +2006,10 @@ KBEngine.DATATYPE_UNICODE = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		if(typeof(v) == "string")
+			return v;
+		
+		return "";
 	}
 	
 	this.isSameType = function(v)
@@ -2106,6 +2276,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.entity_uuid = null;
 		this.entity_id = 0;
 		this.entity_type = "";
+
+		// 当前玩家最后一次同步到服务端的位置与朝向与服务端最后一次同步过来的位置
+		this.entityLastLocalPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
+		this.entityLastLocalDir = new KBEngine.Vector3(0.0, 0.0, 0.0);
+		this.entityServerPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
 		
 		// 玩家是否在地面上
 		this.isOnGound = false;
@@ -2160,7 +2335,12 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		return KBEngine.app.entities[KBEngine.app.entity_id];
 	}
-	
+
+	this.findEntity = function(entityID)
+	{
+		return KBEngine.app.entities[entityID];
+	}
+		
 	this.connect = function(addr)
 	{
 		console.assert(KBEngine.app.socket == null, "Assertion of socket not is null");
@@ -2520,7 +2700,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			
 			try
 			{
-				var Class = eval(scriptmethod_name);
+				var Class = eval("KBEngine." + scriptmethod_name);
 			}
 			catch(e)
 			{
@@ -3018,10 +3198,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		if(entity != undefined)
 		{
-			KBEngine.WARNING_MSG("KBEngineApp::Client_onCreatedProxies: entity(" + eid + ") has exist!");
+			// KBEngine.WARNING_MSG("KBEngineApp::Client_onCreatedProxies: entity(" + eid + ") has exist!");
 			return;
 		}
-		
+				
 		KBEngine.app.entity_uuid = rndUUID;
 		KBEngine.app.entity_id = eid;
 		
@@ -3040,6 +3220,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		KBEngine.app.entities[eid] = entity;
 		
+		var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+		if(entityMessage != undefined)
+		{
+			KBEngine.app.Client_onUpdatePropertys(entityMessage);
+			delete KBEngine.bufferedCreateEntityMessage[eid];
+		}
+			
 		entity.__init__();
 	}
 	
@@ -3070,7 +3257,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		if(entity == undefined)
 		{
-			entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
 			if(entityMessage != undefined)
 			{
 				KBEngine.ERROR_MSG("KBEngineApp::Client_onUpdatePropertys: entity(" + eid + ") not found!");
@@ -3098,7 +3285,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			var setmethod = propertydata[5];
 			var val = propertydata[4].createFromStream(stream);
 			var oldval = entity[utype];
+			
 			KBEngine.INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + entity.className + "(id=" + eid  + " " + propertydata[2] + ", val=" + val + ")!");
+			
 			entity[propertydata[2]] = val;
 			if(setmethod != null)
 			{
@@ -3236,6 +3425,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				KBEngine.app.entities = {}
 				KBEngine.app.entities[entity.id] = entity;
 			
+				KBEngine.app.entityServerPos.x = entity.position.x;
+				KBEngine.app.entityServerPos.y = entity.position.y;
+				KBEngine.app.entityServerPos.z = entity.position.z;
+				
 				entity.isOnGound = isOnGound > 0;
 				entity.onEnterWorld();
 			}
@@ -3312,6 +3505,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			return;
 		}
 		
+		KBEngine.app.entityServerPos.x = entity.position.x;
+		KBEngine.app.entityServerPos.y = entity.position.y;
+		KBEngine.app.entityServerPos.z = entity.position.z;		
 		entity.onEnterSpace();
 	}
 	
@@ -3333,28 +3529,6 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.ERROR_MSG("KBEngineApp::Client_onKicked: failedcode(" + failedcode + ")!");
 		KBEngine.Event.fire("onKicked", failedcode);
 	}
-	
-	this.Client_onSetEntityPosAndDir = function(stream)
-	{
-		var eid = stream.readInt32();
-		var entity = KBEngine.app.entities[eid];
-		if(entity == undefined)
-		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onSetEntityPosAndDir: entity(" + eid + ") not found!");
-			return;
-		}
-		
-		entity.position[0] = stream.readFloat();
-		entity.position[1] = stream.readFloat();
-		entity.position[2] = stream.readFloat();
-		
-		entity.direction[0] = stream.readFloat();
-		entity.direction[1] = stream.readFloat();
-		entity.direction[2] = stream.readFloat();
-		
-		KBEngine.Event.fire("set_direction", entity);
-		KBEngine.Event.fire("set_position", entity);
-	}
 
 	this.Client_onCreateAccountResult = function(stream)
 	{
@@ -3373,21 +3547,32 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.updatePlayerToServer = function()
 	{
-		player = KBEngine.app.player();
+		var player = KBEngine.app.player();
 		if(player == undefined || player.inWorld == false || KBEngine.app.spaceID == 0)
 			return;
 		
-		var bundle = new KBEngine.Bundle();
-		bundle.newMessage(KBEngine.messages.Baseapp_onUpdateDataFromClient);
-		bundle.writeFloat(player.position[0]);
-		bundle.writeFloat(player.position[1]);
-		bundle.writeFloat(player.position[2]);
-		bundle.writeFloat(player.direction[2]);
-		bundle.writeFloat(player.direction[1]);
-		bundle.writeFloat(player.direction[0]);
-		bundle.writeUint8(KBEngine.app.isOnGound);
-		bundle.writeUint8(KBEngine.app.spaceID);
-		bundle.send(KBEngine.app);
+		if(KBEngine.app.entityLastLocalPos.distance(player.position) > 0.001 || KBEngine.app.entityLastLocalDir.distance(player.direction) > 0.001)
+		{
+			// 记录玩家最后一次上报位置时自身当前的位置
+			KBEngine.app.entityLastLocalPos.x = player.position.x;
+			KBEngine.app.entityLastLocalPos.y = player.position.y;
+			KBEngine.app.entityLastLocalPos.z = player.position.z;
+			KBEngine.app.entityLastLocalDir.x = player.direction.x;
+			KBEngine.app.entityLastLocalDir.y = player.direction.y;
+			KBEngine.app.entityLastLocalDir.z = player.direction.z;	
+							
+			var bundle = new KBEngine.Bundle();
+			bundle.newMessage(KBEngine.messages.Baseapp_onUpdateDataFromClient);
+			bundle.writeFloat(player.position.x);
+			bundle.writeFloat(player.position.y);
+			bundle.writeFloat(player.position.z);
+			bundle.writeFloat(player.direction.x);
+			bundle.writeFloat(player.direction.y);
+			bundle.writeFloat(player.direction.z);
+			bundle.writeUint8(KBEngine.app.isOnGound);
+			bundle.writeUint32(KBEngine.app.spaceID);
+			bundle.send(KBEngine.app);
+		}
 	}
 	
 	this.addSpaceGeometryMapping = function(spaceID, respath)
@@ -3474,17 +3659,15 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.Client_onUpdateBasePos = function(stream)
 	{
-		var pos = Array(3);
-		pos[0] = stream.readFloat();
-		pos[1] = stream.readFloat();
-		pos[2] = stream.readFloat();
+		KBEngine.app.entityServerPos.x = stream.readFloat();
+		KBEngine.app.entityServerPos.y = stream.readFloat();
+		KBEngine.app.entityServerPos.z = stream.readFloat();
 	}
 	
 	this.Client_onUpdateBasePosXZ = function(stream)
 	{
-		var pos = Array(3);
-		pos[0] = stream.readFloat();
-		pos[2] = stream.readFloat();
+		KBEngine.app.entityServerPos.x = stream.readFloat();
+		KBEngine.app.entityServerPos.z = stream.readFloat();
 	}
 	
 	this.Client_onUpdateData = function(stream)
@@ -3497,6 +3680,35 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			return;
 		}
 	}
+
+	this.Client_onSetEntityPosAndDir = function(stream)
+	{
+		var eid = stream.readInt32();
+		var entity = KBEngine.app.entities[eid];
+		if(entity == undefined)
+		{
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onSetEntityPosAndDir: entity(" + eid + ") not found!");
+			return;
+		}
+		
+		entity.position.x = stream.readFloat();
+		entity.position.y = stream.readFloat();
+		entity.position.z = stream.readFloat();
+		entity.direction.x = stream.readFloat();
+		entity.direction.y = stream.readFloat();
+		entity.direction.z = stream.readFloat();
+		
+		// 记录玩家最后一次上报位置时自身当前的位置
+		KBEngine.app.entityLastLocalPos.x = entity.position.x;
+		KBEngine.app.entityLastLocalPos.y = entity.position.y;
+		KBEngine.app.entityLastLocalPos.z = entity.position.z;
+		KBEngine.app.entityLastLocalDir.x = entity.direction.x;
+		KBEngine.app.entityLastLocalDir.y = entity.direction.y;
+		KBEngine.app.entityLastLocalDir.z = entity.direction.z;	
+				
+		KBEngine.Event.fire("set_direction", entity);
+		KBEngine.Event.fire("set_position", entity);
+	}
 	
 	this.Client_onUpdateData_ypr = function(stream)
 	{
@@ -3506,7 +3718,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, r, -1);
 	}
 	
 	this.Client_onUpdateData_yp = function(stream)
@@ -3516,7 +3728,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, KBEngine.KBE_FLT_MAX, -1);
 	}
 	
 	this.Client_onUpdateData_yr = function(stream)
@@ -3526,7 +3738,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, r, -1);
 	}
 	
 	this.Client_onUpdateData_pr = function(stream)
@@ -3536,7 +3748,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, r, -1);
 	}
 	
 	this.Client_onUpdateData_y = function(stream)
@@ -3545,7 +3757,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var y = stream.readPackY();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, -1);
 	}
 	
 	this.Client_onUpdateData_p = function(stream)
@@ -3554,7 +3766,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX, -1);
 	}
 	
 	this.Client_onUpdateData_r = function(stream)
@@ -3563,7 +3775,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r, -1);
 	}
 	
 	this.Client_onUpdateData_xz = function(stream)
@@ -3572,7 +3784,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var xz = stream.readPackXZ();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_ypr = function(stream)
@@ -3585,7 +3797,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, r, 1);
 	}
 	
 	this.Client_onUpdateData_xz_yp = function(stream)
@@ -3597,7 +3809,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_yr = function(stream)
@@ -3609,7 +3821,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, r, 1);
 	}
 	
 	this.Client_onUpdateData_xz_pr = function(stream)
@@ -3621,7 +3833,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, r, 1);
 	}
 	
 	this.Client_onUpdateData_xz_y = function(stream)
@@ -3632,7 +3844,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 		var y = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_p = function(stream)
@@ -3643,7 +3855,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_r = function(stream)
@@ -3654,7 +3866,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r, 1);
 	}
 	
 	this.Client_onUpdateData_xyz = function(stream)
@@ -3664,7 +3876,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var xz = stream.readPackXZ();
 		var y = stream.readPackY();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 0);
 	}
 	
 	this.Client_onUpdateData_xyz_ypr = function(stream)
@@ -3678,7 +3890,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, r, 0);
 	}
 	
 	this.Client_onUpdateData_xyz_yp = function(stream)
@@ -3691,7 +3903,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var yaw = stream.readInt8();
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, KBEngine.KBE_FLT_MAX, 0);
 	}
 	
 	this.Client_onUpdateData_xyz_yr = function(stream)
@@ -3704,7 +3916,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var yaw = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, r);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, r, 0);
 	}
 	
 	this.Client_onUpdateData_xyz_pr = function(stream)
@@ -3717,7 +3929,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, x, y, z, KBEngine.KBE_FLT_MAX, p, r);
+		KBEngine.app._updateVolatileData(eid, x, y, z, KBEngine.KBE_FLT_MAX, p, r, 0);
 	}
 	
 	this.Client_onUpdateData_xyz_y = function(stream)
@@ -3729,7 +3941,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var yaw = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 0);
 	}
 	
 	this.Client_onUpdateData_xyz_p = function(stream)
@@ -3741,7 +3953,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX, 0);
 	}
 	
 	this.Client_onUpdateData_xyz_r = function(stream)
@@ -3753,18 +3965,66 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], r, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX);
+		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], r, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 0);
 	}
 	
-	this._updateVolatileData = function(entityID, x, y, z, yaw, pitch, roll)
+	this._updateVolatileData = function(entityID, x, y, z, yaw, pitch, roll, isOnGound)
 	{
-		if(entityID == 0)
+		var entity = KBEngine.app.entities[entityID];
+		if(entity == undefined)
 		{
 			// 如果为0且客户端上一步是重登陆或者重连操作并且服务端entity在断线期间一直处于在线状态
 			// 则可以忽略这个错误, 因为cellapp可能一直在向baseapp发送同步消息， 当客户端重连上时未等
-			// 服务端初始化步骤开始则收到同步信息, 此时这里就会出错。
+			// 服务端初始化步骤开始则收到同步信息, 此时这里就会出错。			
+			KBEngine.ERROR_MSG("KBEngineApp::_updateVolatileData: entity(" + entityID + ") not found!");
 			return;
 		}
+		
+		// 小于0不设置
+		if(isOnGound >= 0)
+		{
+			entity.isOnGound = (isOnGound > 0);
+		}
+		
+		var changeDirection = false;
+		
+		if(roll != KBEngine.KBE_FLT_MAX)
+		{
+			changeDirection = true;
+			entity.direction.x = KBEngine.int82angle(roll, false);
+		}
+
+		if(pitch != KBEngine.KBE_FLT_MAX)
+		{
+			changeDirection = true;
+			entity.direction.y = KBEngine.int82angle(pitch, false);
+		}
+		
+		if(yaw != KBEngine.KBE_FLT_MAX)
+		{
+			changeDirection = true;
+			entity.direction.z = KBEngine.int82angle(yaw, false);
+		}
+		
+		var done = false;
+		if(changeDirection == true)
+		{
+			KBEngine.Event.fire("set_direction", entity);		
+			done = true;
+		}
+		
+		if(Math.abs(x + y + z) > 0.00001)
+		{
+			entity.position.x = x + KBEngine.app.entityServerPos.x;
+			entity.position.y = y + KBEngine.app.entityServerPos.y;
+			entity.position.z = z + KBEngine.app.entityServerPos.z;
+			
+			done = true;
+			KBEngine.Event.fire("update_position", entity);
+		}
+		
+		if(done)
+			entity.onUpdateVolatileData();		
 	}
 	
 	this.Client_onStreamDataStarted = function(id, datasize, descr)
