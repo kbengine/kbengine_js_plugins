@@ -1251,6 +1251,10 @@ KBEngine.Entity = KBEngine.Class.extend(
 	{
 	},
 
+	onDestroy : function()
+	{
+	},
+
 	isPlayer : function()
 	{
 		return this.id == KBEngine.app.entity_id;
@@ -2255,8 +2259,18 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.baseappPort = 0;
 			
 	this.reset = function()
-	{  
-		this.socket = null;
+	{
+		if(this.entities != undefined && this.entities != null)
+		{
+			this.clearEntities(true);
+		}
+		
+		if(this.socket != undefined && this.socket != null)
+		{
+			this.socket.onclose = undefined;
+			this.socket.close();
+			this.socket = null;
+		}
 		
 		this.currserver = "loginapp";
 		this.currstate = "create";
@@ -3588,9 +3602,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		KBEngine.app.entityIDAliasIDList = [];
 		KBEngine.app.spacedata = {};
+		KBEngine.app.clearEntities(isAll);
 		KBEngine.app.isLoadedGeometry = false;
 		KBEngine.app.spaceID = 0;
-		
+	}
+
+	this.clearEntities = function(isAll)
+	{
 		if(!isAll)
 		{
 			var entity = KBEngine.app.player();
@@ -3600,7 +3618,12 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				if(eid == entity.id)
 					continue;
 				
-			    KBEngine.app.entities[eid].onLeaveWorld();
+				if(KBEngine.app.entities[eid].inWorld)
+				{
+			    	KBEngine.app.entities[eid].onLeaveWorld();
+			    }
+			    
+			    KBEngine.app.entities[eid].onDestroy();
 			}  
 				
 			KBEngine.app.entities = {}
@@ -3610,13 +3633,18 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		{
 			for (var eid in KBEngine.app.entities)  
 			{ 
-			    KBEngine.app.entities[eid].onLeaveWorld();
+				if(KBEngine.app.entities[eid].inWorld)
+			    {
+			    	KBEngine.app.entities[eid].onLeaveWorld();
+			    }
+			    
+			    KBEngine.app.entities[eid].onDestroy();
 			}  
 				
 			KBEngine.app.entities = {}
 		}
 	}
-		
+
 	this.Client_initSpaceData = function(stream)
 	{
 		KBEngine.app.clearSpace(false);
