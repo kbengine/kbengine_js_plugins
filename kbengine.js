@@ -2283,7 +2283,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.serverScriptVersion = "";
 		this.serverProtocolMD5 = "";
 		this.serverEntityDefMD5 = "";
-		this.clientVersion = "0.6.0";
+		this.clientVersion = "0.6.1";
 		this.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -2726,6 +2726,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				propertysize--;
 				
 				var properUtype = stream.readUint16();
+				var properFlags = stream.readUint32();
 				var aliasID = stream.readInt16();
 				var name = stream.readString();
 				var defaultValStr = stream.readString();
@@ -2738,7 +2739,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 						setmethod = null;
 				}
 				
-				var savedata = [properUtype, aliasID, name, defaultValStr, utype, setmethod];
+				var savedata = [properUtype, aliasID, name, defaultValStr, utype, setmethod, properFlags];
 				self_propertys[name] = savedata;
 				
 				if(aliasID >= 0)
@@ -3297,6 +3298,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 			var propertydata = pdatas[utype];
 			var setmethod = propertydata[5];
+			var flags = propertydata[6];
 			var val = propertydata[4].createFromStream(stream);
 			var oldval = entity[utype];
 			
@@ -3305,7 +3307,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			entity[propertydata[2]] = val;
 			if(setmethod != null)
 			{
-				setmethod.apply(entity, oldval);
+				// base类属性或者进入世界后cell类属性会触发set_*方法
+				if(flags == 0x00000020 || flags == 0x00000040 || entity.inWorld)
+					setmethod.apply(entity, oldval);
 			}
 		}
 	}
