@@ -3511,6 +3511,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.Client_onEntityEnterSpace = function(stream)
 	{
 		var eid = stream.readInt32();
+		KBEngine.app.spaceID = stream.readUint32();
 		var isOnGound = true;
 		
 		if(stream.length() > 0)
