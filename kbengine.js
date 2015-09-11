@@ -2624,6 +2624,18 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			}
 		}
 	}
+
+	this.createDataTypeFromStreams = function(stream, canprint)
+	{
+		var aliassize = stream.readUint16();
+		KBEngine.INFO_MSG("KBEngineApp::createDataTypeFromStreams: importAlias(size=" + aliassize + ")!");
+		
+		while(aliassize > 0)
+		{
+			aliassize--;
+			KBEngine.app.createDataTypeFromStream(stream, canprint);
+		};		
+	}
 	
 	this.createDataTypeFromStream = function(stream, canprint)
 	{
@@ -2634,7 +2646,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		if(canprint)
 			KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: importAlias(" + name + ":" + valname + ")!");
 		
-		if(valname == "FIXED_DICT")
+		if(name == "FIXED_DICT")
 		{
 			var datatype = new KBEngine.DATATYPE_FIXED_DICT();
 			var keysize = stream.readUint8();
@@ -2649,34 +2661,29 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				datatype.dicttype[keyname] = keyutype;
 			};
 			
-			KBEngine.datatypes[name] = datatype;
+			KBEngine.datatypes[valname] = datatype;
 		}
-		else if(valname == "ARRAY")
+		else if(name == "ARRAY")
 		{
 			var uitemtype = stream.readUint16();
 			var datatype = new KBEngine.DATATYPE_ARRAY();
 			datatype.type = uitemtype;
-			KBEngine.datatypes[name] = datatype;
+			KBEngine.datatypes[valname] = datatype;
 		}
 		else
 		{
-			KBEngine.datatypes[name] = KBEngine.datatypes[valname];
+			KBEngine.datatypes[valname] = KBEngine.datatypes[name];
 		}
 
-		KBEngine.datatypes[utype] = KBEngine.datatypes[name];
-		KBEngine.datatype2id[name] = KBEngine.datatype2id[valname];
+		KBEngine.datatypes[utype] = KBEngine.datatypes[valname];
+		
+		// 将用户自定义的类型补充到映射表中
+		KBEngine.datatype2id[valname] = utype;
 	}
 	
 	this.Client_onImportClientEntityDef = function(stream)
 	{
-		var aliassize = stream.readUint16();
-		KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: importAlias(size=" + aliassize + ")!");
-		
-		while(aliassize > 0)
-		{
-			aliassize--;
-			KBEngine.app.createDataTypeFromStream(stream, true);
-		};
+		KBEngine.app.createDataTypeFromStreams(stream, true);
 	
 		for(datatype in KBEngine.datatypes)
 		{
