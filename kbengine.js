@@ -2634,15 +2634,32 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		{
 			aliassize--;
 			KBEngine.app.createDataTypeFromStream(stream, canprint);
-		};		
+		};	
+		
+		for(datatype in KBEngine.datatypes)
+		{
+			if(KBEngine.datatypes[datatype] != undefined)
+			{
+				KBEngine.datatypes[datatype].bind();
+			}
+		}
 	}
-	
+
 	this.createDataTypeFromStream = function(stream, canprint)
 	{
 		var utype = stream.readUint16();
 		var name = stream.readString();
 		var valname = stream.readString();
 		
+		/* 有一些匿名类型，我们需要提供一个唯一名称放到datatypes中
+			如：
+			<onRemoveAvatar>
+				<Arg>	ARRAY <of> INT8 </of>		</Arg>
+			</onRemoveAvatar>				
+		*/
+		if(valname.length == 0)
+			length = "Null_" + utype;
+			
 		if(canprint)
 			KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: importAlias(" + name + ":" + valname + ")!");
 		
@@ -2684,14 +2701,6 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.Client_onImportClientEntityDef = function(stream)
 	{
 		KBEngine.app.createDataTypeFromStreams(stream, true);
-	
-		for(datatype in KBEngine.datatypes)
-		{
-			if(KBEngine.datatypes[datatype] != undefined)
-			{
-				KBEngine.datatypes[datatype].bind();
-			}
-		}
 		
 		while(!stream.readEOF())
 		{
