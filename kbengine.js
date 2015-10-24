@@ -2215,7 +2215,7 @@ KBEngine.KBEngineArgs = function()
 	this.updateHZ = 100;
 	
 	// Reference: http://www.kbengine.org/docs/programming/clientsdkprogramming.html, client types
-	this.clientType = 3;
+	this.clientType = 5;
 }
 
 /*-----------------------------------------------------------------------------------------
@@ -3099,7 +3099,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{  
 		if(noconnect)
 		{
-			KBEngine.Event.fire("login_baseapp");
+			KBEngine.Event.fire("onLoginBaseapp");
 			KBEngine.INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
 			KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
 			KBEngine.app.socket.onopen = KBEngine.app.onOpenBaseapp;  
@@ -3107,7 +3107,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		else
 		{
 			var bundle = new KBEngine.Bundle();
-			bundle.newMessage(KBEngine.messages.Baseapp_loginGateway);
+			bundle.newMessage(KBEngine.messages.Baseapp_loginBaseapp);
 			bundle.writeString(KBEngine.app.username);
 			bundle.writeString(KBEngine.app.password);
 			bundle.send(KBEngine.app);
@@ -3116,7 +3116,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.relogin_baseapp = function()
 	{  
-		KBEngine.Event.fire("onRelogin_baseapp");
+		KBEngine.Event.fire("onReLoginBaseapp");
 		KBEngine.INFO_MSG("KBEngineApp::relogin_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
 		KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
 		KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;  
@@ -3128,7 +3128,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.currserver = "baseapp";
 		
 		var bundle = new KBEngine.Bundle();
-		bundle.newMessage(KBEngine.messages.Baseapp_reLoginGateway);
+		bundle.newMessage(KBEngine.messages.Baseapp_reLoginBaseapp);
 		bundle.writeString(KBEngine.app.username);
 		bundle.writeString(KBEngine.app.password);
 		bundle.writeUint64(KBEngine.app.entity_uuid);
@@ -3173,17 +3173,17 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.login_baseapp(true);
 	}
 	
-	this.Client_onLoginGatewayFailed = function(failedcode)
+	this.Client_onLoginBaseappFailed = function(failedcode)
 	{
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginGatewayFailed: failedcode(" + failedcode + ")!");
-		KBEngine.Event.fire("onLoginGatewayFailed", failedcode);
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginBaseappFailed: failedcode(" + failedcode + ")!");
+		KBEngine.Event.fire("onLoginBaseappFailed", failedcode);
 	}
 
-	this.Client_onReLoginGatewaySuccessfully = function(stream)
+	this.Client_onReLoginBaseappSuccessfully = function(stream)
 	{
 		KBEngine.app.entity_uuid = stream.readUint64();
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onReLoginGatewaySuccessfully: " + KBEngine.app.username);
-		KBEngine.Event.fire("onReLoginGatewaySuccessfully");
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onReLoginBaseappSuccessfully: " + KBEngine.app.username);
+		KBEngine.Event.fire("onReLoginBaseappSuccessfully");
 	}
 	
 	this.entityclass = {};
@@ -4053,7 +4053,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			entity.position.z = z + KBEngine.app.entityServerPos.z;
 			
 			done = true;
-			KBEngine.Event.fire("update_position", entity);
+			KBEngine.Event.fire("updatePosition", entity);
 		}
 		
 		if(done)
