@@ -2283,7 +2283,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.serverScriptVersion = "";
 		this.serverProtocolMD5 = "";
 		this.serverEntityDefMD5 = "";
-		this.clientVersion = "0.6.1";
+		this.clientVersion = "0.6.15";
 		this.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -2624,17 +2624,46 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			}
 		}
 	}
-	
+
+	this.createDataTypeFromStreams = function(stream, canprint)
+	{
+		var aliassize = stream.readUint16();
+		KBEngine.INFO_MSG("KBEngineApp::createDataTypeFromStreams: importAlias(size=" + aliassize + ")!");
+		
+		while(aliassize > 0)
+		{
+			aliassize--;
+			KBEngine.app.createDataTypeFromStream(stream, canprint);
+		};	
+		
+		for(datatype in KBEngine.datatypes)
+		{
+			if(KBEngine.datatypes[datatype] != undefined)
+			{
+				KBEngine.datatypes[datatype].bind();
+			}
+		}
+	}
+
 	this.createDataTypeFromStream = function(stream, canprint)
 	{
 		var utype = stream.readUint16();
 		var name = stream.readString();
 		var valname = stream.readString();
 		
+		/* 有一些匿名类型，我们需要提供一个唯一名称放到datatypes中
+			如：
+			<onRemoveAvatar>
+				<Arg>	ARRAY <of> INT8 </of>		</Arg>
+			</onRemoveAvatar>				
+		*/
+		if(valname.length == 0)
+			length = "Null_" + utype;
+			
 		if(canprint)
 			KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: importAlias(" + name + ":" + valname + ")!");
 		
-		if(valname == "FIXED_DICT")
+		if(name == "FIXED_DICT")
 		{
 			var datatype = new KBEngine.DATATYPE_FIXED_DICT();
 			var keysize = stream.readUint8();
@@ -2649,42 +2678,29 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				datatype.dicttype[keyname] = keyutype;
 			};
 			
-			KBEngine.datatypes[name] = datatype;
+			KBEngine.datatypes[valname] = datatype;
 		}
-		else if(valname == "ARRAY")
+		else if(name == "ARRAY")
 		{
 			var uitemtype = stream.readUint16();
 			var datatype = new KBEngine.DATATYPE_ARRAY();
 			datatype.type = uitemtype;
-			KBEngine.datatypes[name] = datatype;
+			KBEngine.datatypes[valname] = datatype;
 		}
 		else
 		{
-			KBEngine.datatypes[name] = KBEngine.datatypes[valname];
+			KBEngine.datatypes[valname] = KBEngine.datatypes[name];
 		}
 
-		KBEngine.datatypes[utype] = KBEngine.datatypes[name];
-		KBEngine.datatype2id[name] = KBEngine.datatype2id[valname];
+		KBEngine.datatypes[utype] = KBEngine.datatypes[valname];
+		
+		// 将用户自定义的类型补充到映射表中
+		KBEngine.datatype2id[valname] = utype;
 	}
 	
 	this.Client_onImportClientEntityDef = function(stream)
 	{
-		var aliassize = stream.readUint16();
-		KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: importAlias(size=" + aliassize + ")!");
-		
-		while(aliassize > 0)
-		{
-			aliassize--;
-			KBEngine.app.createDataTypeFromStream(stream, true);
-		};
-	
-		for(datatype in KBEngine.datatypes)
-		{
-			if(KBEngine.datatypes[datatype] != undefined)
-			{
-				KBEngine.datatypes[datatype].bind();
-			}
-		}
+		KBEngine.app.createDataTypeFromStreams(stream, true);
 		
 		while(!stream.readEOF())
 		{
