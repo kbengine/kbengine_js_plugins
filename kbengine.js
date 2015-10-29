@@ -2320,12 +2320,14 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		KBEngine.Event.register("createAccount", this, "createAccount");
 		KBEngine.Event.register("login", this, "login");
-		KBEngine.Event.register("relogin_baseapp", this, "relogin_baseapp");
+		KBEngine.Event.register("reLoginBaseapp", this, "reLoginBaseapp");
+		KBEngine.Event.register("bindAccountEmail", this, "bindAccountEmail");
+		KBEngine.Event.register("newPassword", this, "newPassword");
 	}
 
 	this.uninstallEvents = function()
 	{
-		KBEngine.Event.deregister("relogin_baseapp", this);
+		KBEngine.Event.deregister("reLoginBaseapp", this);
 		KBEngine.Event.deregister("login", this);
 		KBEngine.Event.deregister("createAccount", this);
 	}
@@ -3000,23 +3002,23 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 	}
 	
-	this.bind_email = function(mailstr)
+	this.bindAccountEmail = function(emailAddress)
 	{  
 		var bundle = new KBEngine.Bundle();
 		bundle.newMessage(KBEngine.messages.Baseapp_reqAccountBindEmail);
 		bundle.writeInt32(KBEngine.app.entity_id);
 		bundle.writeString(KBEngine.app.password);
-		bundle.writeString(mailstr);
+		bundle.writeString(emailAddress);
 		bundle.send(KBEngine.app);
 	}
 	
-	this.new_password = function(oldpassword, newpassword)
+	this.newPassword = function(old_password, new_password)
 	{
 		var bundle = new KBEngine.Bundle();
 		bundle.newMessage(KBEngine.messages.Baseapp_reqAccountNewPassword);
 		bundle.writeInt32(KBEngine.app.entity_id);
-		bundle.writeString(oldpassword);
-		bundle.writeString(newpassword);
+		bundle.writeString(old_password);
+		bundle.writeString(new_password);
 		bundle.send(KBEngine.app);
 	}
 	
@@ -3130,10 +3132,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 	}
 	
-	this.relogin_baseapp = function()
+	this.reLoginBaseapp = function()
 	{  
 		KBEngine.Event.fire("onReLoginBaseapp");
-		KBEngine.INFO_MSG("KBEngineApp::relogin_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
+		KBEngine.INFO_MSG("KBEngineApp::reLoginBaseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
 		KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
 		KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;  
 	}
