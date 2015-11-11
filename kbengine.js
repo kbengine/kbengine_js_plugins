@@ -2297,7 +2297,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.entityServerPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
 		
 		// 玩家是否在地面上
-		this.isOnGound = false;
+		this.isOnGround = false;
 		
 		// 客户端所有的实体
 		this.entities = {};
@@ -3402,13 +3402,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		else
 			entityType = stream.readUint8();
 		
-		var isOnGound = true;
+		var isOnGround = true;
 		
 		if(stream.length() > 0)
-			isOnGound = stream.readInt8();
+			isOnGround = stream.readInt8();
 		
 		entityType = KBEngine.moduledefs[entityType].name;
-		KBEngine.INFO_MSG("KBEngineApp::Client_onEntityEnterWorld: " + entityType + "(" + eid + "), spaceID(" + KBEngine.app.spaceID + "), isOnGound(" + isOnGound + ")!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onEntityEnterWorld: " + entityType + "(" + eid + "), spaceID(" + KBEngine.app.spaceID + "), isOnGround(" + isOnGround + ")!");
 		
 		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
@@ -3438,7 +3438,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			KBEngine.app.Client_onUpdatePropertys(entityMessage);
 			delete KBEngine.bufferedCreateEntityMessage[eid];
 			
-			entity.isOnGound = isOnGound > 0;
+			entity.isOnGround = isOnGround > 0;
 			entity.__init__();
 			entity.onEnterWorld();
 			
@@ -3465,7 +3465,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				KBEngine.app.entityServerPos.y = entity.position.y;
 				KBEngine.app.entityServerPos.z = entity.position.z;
 				
-				entity.isOnGound = isOnGound > 0;
+				entity.isOnGround = isOnGround > 0;
 				entity.onEnterWorld();
 			}
 		}
@@ -3521,8 +3521,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 
 		if(entity.inWorld)
+		{
+			if(KBEngine.app.entity_id == eid)
+				KBEngine.app.clearSpace(false);
+
 			entity.onLeaveWorld();
-		
+		}
+			
 		delete KBEngine.app.entities[eid];
 	}
 	
@@ -3530,10 +3535,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		var eid = stream.readInt32();
 		KBEngine.app.spaceID = stream.readUint32();
-		var isOnGound = true;
+		var isOnGround = true;
 		
 		if(stream.length() > 0)
-			isOnGound = stream.readInt8();
+			isOnGround = stream.readInt8();
 		
 		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
@@ -3606,7 +3611,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			bundle.writeFloat(player.direction.x);
 			bundle.writeFloat(player.direction.y);
 			bundle.writeFloat(player.direction.z);
-			bundle.writeUint8(KBEngine.app.isOnGound);
+			bundle.writeUint8(KBEngine.app.isOnGround);
 			bundle.writeUint32(KBEngine.app.spaceID);
 			bundle.send(KBEngine.app);
 		}
@@ -4019,7 +4024,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], r, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 0);
 	}
 	
-	this._updateVolatileData = function(entityID, x, y, z, yaw, pitch, roll, isOnGound)
+	this._updateVolatileData = function(entityID, x, y, z, yaw, pitch, roll, isOnGround)
 	{
 		var entity = KBEngine.app.entities[entityID];
 		if(entity == undefined)
@@ -4032,9 +4037,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 		
 		// 小于0不设置
-		if(isOnGound >= 0)
+		if(isOnGround >= 0)
 		{
-			entity.isOnGound = (isOnGound > 0);
+			entity.isOnGround = (isOnGround > 0);
 		}
 		
 		var changeDirection = false;
