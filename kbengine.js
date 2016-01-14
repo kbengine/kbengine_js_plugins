@@ -1272,7 +1272,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 				// base类属性或者进入世界后cell类属性会触发set_*方法
 				if(flags == 0x00000020 || flags == 0x00000040)
 				{
-					if(this.inited)
+					if(this.inited && !this.inWorld)
 						setmethod.apply(this, oldval);
 				}
 				else
