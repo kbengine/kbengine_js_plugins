@@ -1255,7 +1255,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 	{
 	},
 
-	notifyPropertysSetMethods : function()
+	callPropertysSetMethods : function()
 	{
 		var currModule = KBEngine.moduledefs[this.className];
 		for(name in currModule.propertys)
@@ -2268,6 +2268,9 @@ KBEngine.KBEngineArgs = function()
 	
 	// Reference: http://www.kbengine.org/docs/programming/clientsdkprogramming.html, client types
 	this.clientType = 5;
+
+	// 在Entity初始化时是否触发属性的set_*事件(callPropertysSetMethods)
+	this.isOnInitCallPropertysSetMethods = true;
 }
 
 /*-----------------------------------------------------------------------------------------
@@ -3314,7 +3317,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			
 		entity.__init__();
 		entity.inited = true;
-		entity.notifyPropertysSetMethods();
+		
+		if(this.args.isOnInitCallPropertysSetMethods)
+			entity.callPropertysSetMethods();
 	}
 	
 	this.getAoiEntityIDFromStream = function(stream)
@@ -3505,7 +3510,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			entity.inited = true;
 			entity.inWorld = true;
 			entity.enterWorld();
-			entity.notifyPropertysSetMethods();
+			
+			if(this.args.isOnInitCallPropertysSetMethods)
+				entity.callPropertysSetMethods();
 			
 			entity.set_direction(entity.direction);
 			entity.set_position(entity.position);
@@ -3536,7 +3543,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				entity.isOnGround = isOnGround > 0;
 				entity.inWorld = true;
 				entity.enterWorld();
-				entity.notifyPropertysSetMethods();
+				
+				if(this.args.isOnInitCallPropertysSetMethods)
+					entity.callPropertysSetMethods();
 			}
 		}
 	}
