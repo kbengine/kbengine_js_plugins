@@ -1242,13 +1242,46 @@ KBEngine.Entity = KBEngine.Class.extend(
 		this.cell = null;
 		this.base = null;
 		
-		this.inWorld = false;		
+		// enterworld之后设置为true
+		this.inWorld = false;
+		
+		// __init__调用之后设置为true
+		this.inited = false;
         return true;
     },
     
     // 与服务端实体脚本中__init__类似, 代表初始化实体
 	__init__ : function()
 	{
+	},
+
+	callPropertysSetMethods : function()
+	{
+		var currModule = KBEngine.moduledefs[this.className];
+		for(name in currModule.propertys)
+		{
+			var propertydata = currModule.propertys[name];
+			var properUtype = propertydata[0];
+			var name = propertydata[2];
+			var setmethod = propertydata[5];
+			var flags = propertydata[6];
+			var oldval = this[properUtype];
+			
+			if(setmethod != null)
+			{
+				// base类属性或者进入世界后cell类属性会触发set_*方法
+				if(flags == 0x00000020 || flags == 0x00000040)
+				{
+					if(this.inited && !this.inWorld)
+						setmethod.apply(this, oldval);
+				}
+				else
+				{
+					if(this.inWorld)
+						setmethod.apply(this, oldval);
+				}
+			}
+		};
 	},
 
 	onDestroy : function()
@@ -1364,37 +1397,56 @@ KBEngine.Entity = KBEngine.Class.extend(
 		this.cell.postMail();
 	},
 	
-	onEnterWorld : function()
+	enterWorld : function()
 	{
-		KBEngine.INFO_MSG(this.className + '::onEnterWorld: ' + this.id); 
+		KBEngine.INFO_MSG(this.className + '::enterWorld: ' + this.id); 
 		this.inWorld = true;
+		this.onEnterWorld();
 		
 		KBEngine.Event.fire("onEnterWorld", this);
 	},
-	
-	onLeaveWorld : function()
+
+	onEnterWorld : function()
 	{
-		KBEngine.INFO_MSG(this.className + '::onLeaveWorld: ' + this.id); 
-		this.inWorld = false;
+	},
 		
+	leaveWorld : function()
+	{
+		KBEngine.INFO_MSG(this.className + '::leaveWorld: ' + this.id); 
+		this.inWorld = false;
+		this.onLeaveWorld();
 		KBEngine.Event.fire("onLeaveWorld", this);
 	},
-	
-	onEnterSpace : function()
+
+	onLeaveWorld : function()
 	{
-		KBEngine.INFO_MSG(this.className + '::onEnterSpace: ' + this.id); 
+	},
+		
+	enterSpace : function()
+	{
+		KBEngine.INFO_MSG(this.className + '::enterSpace: ' + this.id); 
+		this.onEnterSpace();
 		KBEngine.Event.fire("onEnterSpace", this);
 	},
-	
-	onLeaveSpace : function()
+
+	onEnterSpace : function()
 	{
-		KBEngine.INFO_MSG(this.className + '::onLeaveSpace: ' + this.id); 
+	},
+		
+	leaveSpace : function()
+	{
+		KBEngine.INFO_MSG(this.className + '::leaveSpace: ' + this.id); 
+		this.onLeaveSpace();
 		KBEngine.Event.fire("onLeaveSpace", this);
 	},
 
+	onLeaveSpace : function()
+	{
+	},
+		
 	set_position : function(old)
 	{
-		// Dbg.DEBUG_MSG(className + "::set_position: " + old + " => " + v); 
+		// KBEngine.DEBUG_MSG(this.className + "::set_position: " + old);  
 		
 		if(this.isPlayer())
 		{
@@ -1412,7 +1464,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 	
 	set_direction : function(old)
 	{
-		// Dbg.DEBUG_MSG(className + "::set_direction: " + old + " => " + v); 
+		// KBEngine.DEBUG_MSG(this.className + "::set_direction: " + old);  
 		KBEngine.Event.fire("set_direction", this);
 	}
 });
@@ -2216,6 +2268,9 @@ KBEngine.KBEngineArgs = function()
 	
 	// Reference: http://www.kbengine.org/docs/programming/clientsdkprogramming.html, client types
 	this.clientType = 5;
+
+	// 在Entity初始化时是否触发属性的set_*事件(callPropertysSetMethods)
+	this.isOnInitCallPropertysSetMethods = true;
 }
 
 /*-----------------------------------------------------------------------------------------
@@ -2283,7 +2338,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.serverScriptVersion = "";
 		this.serverProtocolMD5 = "";
 		this.serverEntityDefMD5 = "";
-		this.clientVersion = "0.6.15";
+		this.clientVersion = "0.8.0";
 		this.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -2297,7 +2352,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.entityServerPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
 		
 		// 玩家是否在地面上
-		this.isOnGound = false;
+		this.isOnGround = false;
 		
 		// 客户端所有的实体
 		this.entities = {};
@@ -2320,12 +2375,14 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		KBEngine.Event.register("createAccount", this, "createAccount");
 		KBEngine.Event.register("login", this, "login");
-		KBEngine.Event.register("relogin_baseapp", this, "relogin_baseapp");
+		KBEngine.Event.register("reLoginBaseapp", this, "reLoginBaseapp");
+		KBEngine.Event.register("bindAccountEmail", this, "bindAccountEmail");
+		KBEngine.Event.register("newPassword", this, "newPassword");
 	}
 
 	this.uninstallEvents = function()
 	{
-		KBEngine.Event.deregister("relogin_baseapp", this);
+		KBEngine.Event.deregister("reLoginBaseapp", this);
 		KBEngine.Event.deregister("login", this);
 		KBEngine.Event.deregister("createAccount", this);
 	}
@@ -3000,23 +3057,23 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 	}
 	
-	this.bind_email = function(mailstr)
+	this.bindAccountEmail = function(emailAddress)
 	{  
 		var bundle = new KBEngine.Bundle();
 		bundle.newMessage(KBEngine.messages.Baseapp_reqAccountBindEmail);
 		bundle.writeInt32(KBEngine.app.entity_id);
 		bundle.writeString(KBEngine.app.password);
-		bundle.writeString(mailstr);
+		bundle.writeString(emailAddress);
 		bundle.send(KBEngine.app);
 	}
 	
-	this.new_password = function(oldpassword, newpassword)
+	this.newPassword = function(old_password, new_password)
 	{
 		var bundle = new KBEngine.Bundle();
 		bundle.newMessage(KBEngine.messages.Baseapp_reqAccountNewPassword);
 		bundle.writeInt32(KBEngine.app.entity_id);
-		bundle.writeString(oldpassword);
-		bundle.writeString(newpassword);
+		bundle.writeString(old_password);
+		bundle.writeString(new_password);
 		bundle.send(KBEngine.app);
 	}
 	
@@ -3130,10 +3187,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 	}
 	
-	this.relogin_baseapp = function()
+	this.reLoginBaseapp = function()
 	{  
 		KBEngine.Event.fire("onReLoginBaseapp");
-		KBEngine.INFO_MSG("KBEngineApp::relogin_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
+		KBEngine.INFO_MSG("KBEngineApp::reLoginBaseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
 		KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
 		KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;  
 	}
@@ -3170,7 +3227,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		var failedcode = args.readUint16();
 		KBEngine.app.serverdatas = args.readBlob();
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginFailed: failedcode(" + failedcode + "), datas(" + KBEngine.app.serverdatas.length + ")!");
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginFailed: failedcode(" + KBEngine.app.serverErrs[failedcode].name + "), datas(" + KBEngine.app.serverdatas.length + ")!");
 		KBEngine.Event.fire("onLoginFailed", failedcode);
 	}
 	
@@ -3191,7 +3248,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.Client_onLoginBaseappFailed = function(failedcode)
 	{
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginBaseappFailed: failedcode(" + failedcode + ")!");
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginBaseappFailed: failedcode(" + KBEngine.app.serverErrs[failedcode].name + ")!");
 		KBEngine.Event.fire("onLoginBaseappFailed", failedcode);
 	}
 
@@ -3259,6 +3316,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 			
 		entity.__init__();
+		entity.inited = true;
+		
+		if(this.args.isOnInitCallPropertysSetMethods)
+			entity.callPropertysSetMethods();
 	}
 	
 	this.getAoiEntityIDFromStream = function(stream)
@@ -3326,8 +3387,16 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			if(setmethod != null)
 			{
 				// base类属性或者进入世界后cell类属性会触发set_*方法
-				if(flags == 0x00000020 || flags == 0x00000040 || entity.inWorld)
-					setmethod.apply(entity, oldval);
+				if(flags == 0x00000020 || flags == 0x00000040)
+				{
+					if(entity.inited)
+						setmethod.apply(entity, oldval);
+				}
+				else
+				{
+					if(entity.inWorld)
+						setmethod.apply(entity, oldval);
+				}
 			}
 		}
 	}
@@ -3402,13 +3471,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		else
 			entityType = stream.readUint8();
 		
-		var isOnGound = true;
+		var isOnGround = true;
 		
 		if(stream.length() > 0)
-			isOnGound = stream.readInt8();
+			isOnGround = stream.readInt8();
 		
 		entityType = KBEngine.moduledefs[entityType].name;
-		KBEngine.INFO_MSG("KBEngineApp::Client_onEntityEnterWorld: " + entityType + "(" + eid + "), spaceID(" + KBEngine.app.spaceID + "), isOnGound(" + isOnGound + ")!");
+		KBEngine.INFO_MSG("KBEngineApp::Client_onEntityEnterWorld: " + entityType + "(" + eid + "), spaceID(" + KBEngine.app.spaceID + "), isOnGround(" + isOnGround + ")!");
 		
 		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
@@ -3438,12 +3507,17 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			KBEngine.app.Client_onUpdatePropertys(entityMessage);
 			delete KBEngine.bufferedCreateEntityMessage[eid];
 			
-			entity.isOnGound = isOnGound > 0;
+			entity.isOnGround = isOnGround > 0;
 			entity.__init__();
-			entity.onEnterWorld();
+			entity.inited = true;
+			entity.inWorld = true;
+			entity.enterWorld();
 			
-			KBEngine.Event.fire("set_direction", entity);
-			KBEngine.Event.fire("set_position", entity);
+			if(this.args.isOnInitCallPropertysSetMethods)
+				entity.callPropertysSetMethods();
+			
+			entity.set_direction(entity.direction);
+			entity.set_position(entity.position);
 		}
 		else
 		{
@@ -3453,20 +3527,27 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				entity.cell.id = eid;
 				entity.cell.className = entityType;
 				entity.cell.type = KBEngine.MAILBOX_TYPE_CELL;
-			
+
 				// 安全起见， 这里清空一下
 				// 如果服务端上使用giveClientTo切换控制权
 				// 之前的实体已经进入世界， 切换后的实体也进入世界， 这里可能会残留之前那个实体进入世界的信息
 				KBEngine.app.entityIDAliasIDList = [];
 				KBEngine.app.entities = {}
 				KBEngine.app.entities[entity.id] = entity;
-			
+
+				entity.set_direction(entity.direction);
+				entity.set_position(entity.position);
+
 				KBEngine.app.entityServerPos.x = entity.position.x;
 				KBEngine.app.entityServerPos.y = entity.position.y;
 				KBEngine.app.entityServerPos.z = entity.position.z;
 				
-				entity.isOnGound = isOnGound > 0;
-				entity.onEnterWorld();
+				entity.isOnGround = isOnGround > 0;
+				entity.inWorld = true;
+				entity.enterWorld();
+				
+				if(this.args.isOnInitCallPropertysSetMethods)
+					entity.callPropertysSetMethods();
 			}
 		}
 	}
@@ -3487,7 +3568,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 		
 		if(entity.inWorld)
-			entity.onLeaveWorld();
+			entity.leaveWorld();
 		
 		if(KBEngine.app.entity_id > 0 && eid != KBEngine.app.entity_id)
 		{
@@ -3521,8 +3602,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 
 		if(entity.inWorld)
-			entity.onLeaveWorld();
-		
+		{
+			if(KBEngine.app.entity_id == eid)
+				KBEngine.app.clearSpace(false);
+
+			entity.leaveWorld();
+		}
+			
 		delete KBEngine.app.entities[eid];
 	}
 	
@@ -3530,10 +3616,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		var eid = stream.readInt32();
 		KBEngine.app.spaceID = stream.readUint32();
-		var isOnGound = true;
+		var isOnGround = true;
 		
 		if(stream.length() > 0)
-			isOnGound = stream.readInt8();
+			isOnGround = stream.readInt8();
 		
 		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
@@ -3544,8 +3630,8 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		KBEngine.app.entityServerPos.x = entity.position.x;
 		KBEngine.app.entityServerPos.y = entity.position.y;
-		KBEngine.app.entityServerPos.z = entity.position.z;		
-		entity.onEnterSpace();
+		KBEngine.app.entityServerPos.z = entity.position.z;
+		entity.enterSpace();
 	}
 	
 	this.Client_onEntityLeaveSpace = function(eid)
@@ -3558,12 +3644,12 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 		
 		KBEngine.app.clearSpace(false);
-		entity.onLeaveSpace();
+		entity.leaveSpace();
 	}
 
 	this.Client_onKicked = function(failedcode)
 	{
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onKicked: failedcode(" + failedcode + ")!");
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onKicked: failedcode(" + KBEngine.app.serverErrs[failedcode].name + ")!");
 		KBEngine.Event.fire("onKicked", failedcode);
 	}
 
@@ -3574,7 +3660,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		if(retcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onCreateAccountResult: " + KBEngine.app.username + " create is failed! code=" + retcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onCreateAccountResult: " + KBEngine.app.username + " create is failed! code=" + KBEngine.app.serverErrs[retcode].name + "!");
 			return;
 		}
 
@@ -3606,7 +3692,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			bundle.writeFloat(player.direction.x);
 			bundle.writeFloat(player.direction.y);
 			bundle.writeFloat(player.direction.z);
-			bundle.writeUint8(KBEngine.app.isOnGound);
+			bundle.writeUint8(KBEngine.app.isOnGround);
 			bundle.writeUint32(KBEngine.app.spaceID);
 			bundle.send(KBEngine.app);
 		}
@@ -3643,7 +3729,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				
 				if(KBEngine.app.entities[eid].inWorld)
 				{
-			    	KBEngine.app.entities[eid].onLeaveWorld();
+			    	KBEngine.app.entities[eid].leaveWorld();
 			    }
 			    
 			    KBEngine.app.entities[eid].onDestroy();
@@ -3658,7 +3744,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			{ 
 				if(KBEngine.app.entities[eid].inWorld)
 			    {
-			    	KBEngine.app.entities[eid].onLeaveWorld();
+			    	KBEngine.app.entities[eid].leaveWorld();
 			    }
 			    
 			    KBEngine.app.entities[eid].onDestroy();
@@ -3757,8 +3843,8 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.entityLastLocalDir.y = entity.direction.y;
 		KBEngine.app.entityLastLocalDir.z = entity.direction.z;	
 				
-		KBEngine.Event.fire("set_direction", entity);
-		KBEngine.Event.fire("set_position", entity);
+		entity.set_direction(entity.direction);
+		entity.set_position(entity.position);
 	}
 	
 	this.Client_onUpdateData_ypr = function(stream)
@@ -4019,7 +4105,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app._updateVolatileData(eid, xz[0], y, xz[1], r, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 0);
 	}
 	
-	this._updateVolatileData = function(entityID, x, y, z, yaw, pitch, roll, isOnGound)
+	this._updateVolatileData = function(entityID, x, y, z, yaw, pitch, roll, isOnGround)
 	{
 		var entity = KBEngine.app.entities[entityID];
 		if(entity == undefined)
@@ -4032,9 +4118,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 		
 		// 小于0不设置
-		if(isOnGound >= 0)
+		if(isOnGround >= 0)
 		{
-			entity.isOnGound = (isOnGound > 0);
+			entity.isOnGround = (isOnGround > 0);
 		}
 		
 		var changeDirection = false;
@@ -4090,33 +4176,33 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 	}
 	
-	this.Client_onReqAccountResetPasswordCB = function(failcode)
+	this.Client_onReqAccountResetPasswordCB = function(failedcode)
 	{
-		if(failcode != 0)
+		if(failedcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountResetPasswordCB: " + KBEngine.app.username + " is failed! code=" + failcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountResetPasswordCB: " + KBEngine.app.username + " is failed! code=" + KBEngine.app.serverErrs[failedcode].name + "!");
 			return;
 		}
 
 		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountResetPasswordCB: " + KBEngine.app.username + " is successfully!");
 	}
 	
-	this.Client_onReqAccountBindEmailCB = function(failcode)
+	this.Client_onReqAccountBindEmailCB = function(failedcode)
 	{
-		if(failcode != 0)
+		if(failedcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountBindEmailCB: " + KBEngine.app.username + " is failed! code=" + failcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountBindEmailCB: " + KBEngine.app.username + " is failed! code=" + KBEngine.app.serverErrs[failedcode].name + "!");
 			return;
 		}
 
 		KBEngine.INFO_MSG("KBEngineApp::Client_onReqAccountBindEmailCB: " + KBEngine.app.username + " is successfully!");
 	}
 	
-	this.Client_onReqAccountNewPasswordCB = function(failcode)
+	this.Client_onReqAccountNewPasswordCB = function(failedcode)
 	{
-		if(failcode != 0)
+		if(failedcode != 0)
 		{
-			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountNewPasswordCB: " + KBEngine.app.username + " is failed! code=" + failcode + "!");
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onReqAccountNewPasswordCB: " + KBEngine.app.username + " is failed! code=" + KBEngine.app.serverErrs[failedcode].name + "!");
 			return;
 		}
 
