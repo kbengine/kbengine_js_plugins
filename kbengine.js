@@ -3794,17 +3794,17 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		return KBEngine.app.spacedata[key];
 	}
 	
-	this.Client_onUpdateBasePos = function(stream)
+	this.Client_onUpdateBasePos = function(x, y, z)
 	{
-		KBEngine.app.entityServerPos.x = stream.readFloat();
-		KBEngine.app.entityServerPos.y = stream.readFloat();
-		KBEngine.app.entityServerPos.z = stream.readFloat();
+		KBEngine.app.entityServerPos.x = x;
+		KBEngine.app.entityServerPos.y = y;
+		KBEngine.app.entityServerPos.z = z;
 	}
 	
-	this.Client_onUpdateBasePosXZ = function(stream)
+	this.Client_onUpdateBasePosXZ = function(x, z)
 	{
-		KBEngine.app.entityServerPos.x = stream.readFloat();
-		KBEngine.app.entityServerPos.z = stream.readFloat();
+		KBEngine.app.entityServerPos.x = x;
+		KBEngine.app.entityServerPos.z = z;
 	}
 	
 	this.Client_onUpdateData = function(stream)
