@@ -407,7 +407,7 @@ KBEngine.MemoryStream = function(size_or_buffer)
 
 	this.readInt64 = function()
 	{
-		return new KBEngine.INT64(this.readUInt32(), this.readUInt32());
+		return new KBEngine.INT64(this.readUint32(), this.readUint32());
 	}
 	
 	this.readUint8 = function()
