@@ -3318,7 +3318,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		entity.__init__();
 		entity.inited = true;
 		
-		if(this.args.isOnInitCallPropertysSetMethods)
+		if(KBEngine.app.args.isOnInitCallPropertysSetMethods)
 			entity.callPropertysSetMethods();
 	}
 	
@@ -3513,7 +3513,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			entity.inWorld = true;
 			entity.enterWorld();
 			
-			if(this.args.isOnInitCallPropertysSetMethods)
+			if(KBEngine.app.args.isOnInitCallPropertysSetMethods)
 				entity.callPropertysSetMethods();
 			
 			entity.set_direction(entity.direction);
@@ -3546,7 +3546,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				entity.inWorld = true;
 				entity.enterWorld();
 				
-				if(this.args.isOnInitCallPropertysSetMethods)
+				if(KBEngine.app.args.isOnInitCallPropertysSetMethods)
 					entity.callPropertysSetMethods();
 			}
 		}
