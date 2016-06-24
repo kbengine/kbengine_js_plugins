@@ -1247,6 +1247,16 @@ KBEngine.Entity = KBEngine.Class.extend(
 		
 		// __init__调用之后设置为true
 		this.inited = false;
+		
+		// 是否被控制
+		this.isControlled = false;
+
+		this.entityLastLocalPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
+		this.entityLastLocalDir = new KBEngine.Vector3(0.0, 0.0, 0.0);
+		
+		// 玩家是否在地面上
+		this.isOnGround = false;
+
         return true;
     },
     
@@ -1285,6 +1295,10 @@ KBEngine.Entity = KBEngine.Class.extend(
 	},
 
 	onDestroy : function()
+	{
+	},
+
+	onControlled : function(bIsControlled)
 	{
 	},
 
@@ -2347,17 +2361,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.entity_type = "";
 
 		// 当前玩家最后一次同步到服务端的位置与朝向与服务端最后一次同步过来的位置
-		this.entityLastLocalPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
-		this.entityLastLocalDir = new KBEngine.Vector3(0.0, 0.0, 0.0);
 		this.entityServerPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
-		
-		// 玩家是否在地面上
-		this.isOnGround = false;
 		
 		// 客户端所有的实体
 		this.entities = {};
 		this.entityIDAliasIDList = [];
-		
+		this.controlledEntities = [];
+
 		// 空间的信息
 		this.spacedata = {};
 		this.spaceID = 0;
@@ -3572,13 +3582,31 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		if(KBEngine.app.entity_id > 0 && eid != KBEngine.app.entity_id)
 		{
+			var newArray0 = [];
+
+			for(var i=0; i<KBEngine.app.controlledEntities.length; i++)
+			{
+				if(KBEngine.app.controlledEntities[i] != eid)
+				{
+			       	newArray0.push(KBEngine.app.controlledEntities[i]);
+				}
+				else
+				{
+					KBEngine.Event.fire("onLoseControlledEntity");
+				}
+			}
+			
+			KBEngine.app.controlledEntities = newArray0
+				
 			delete KBEngine.app.entities[eid];
 			
 			var newArray = [];
-			for(var i=0; i<KBEngine.app.entityIDAliasIDList.length; i++){
-			    if(KBEngine.app.entityIDAliasIDList[i] != eid){
-			       newArray.push(KBEngine.app.entityIDAliasIDList[i]);
-			     }
+			for(var i=0; i<KBEngine.app.entityIDAliasIDList.length; i++)
+			{
+				if(KBEngine.app.entityIDAliasIDList[i] != eid)
+				{
+					newArray.push(KBEngine.app.entityIDAliasIDList[i]);
+				}
 			}
 			
 			KBEngine.app.entityIDAliasIDList = newArray
@@ -3628,6 +3656,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			return;
 		}
 		
+		entity.isOnGround = isOnGround;
 		KBEngine.app.entityServerPos.x = entity.position.x;
 		KBEngine.app.entityServerPos.y = entity.position.y;
 		KBEngine.app.entityServerPos.z = entity.position.z;
@@ -3667,22 +3696,66 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.Event.fire("onCreateAccountResult", retcode, datas);
 		KBEngine.INFO_MSG("KBEngineApp::Client_onCreateAccountResult: " + KBEngine.app.username + " create is successfully!");
 	}
-	
+
+	this.Client_onControlEntity = function(eid, isControlled)
+	{
+		var eid = stream.readInt32();
+		var entity = KBEngine.app.entities[eid];
+		if(entity == undefined)
+		{
+			KBEngine.ERROR_MSG("KBEngineApp::Client_onControlEntity: entity(" + eid + ") not found!");
+			return;
+		}
+		
+		var isCont = isControlled != 0;
+		if (isCont)
+		{
+			// 如果被控制者是玩家自己，那表示玩家自己被其它人控制了
+			// 所以玩家自己不应该进入这个被控制列表
+			if (KBEngine.app.player().id != entity.id)
+			{
+				KBEngine.app.controlledEntities.push(entity)
+			}
+		}
+		else
+		{
+			var newArray = [];
+
+			for(var i=0; i<KBEngine.app.controlledEntities.length; i++)
+				if(KBEngine.app.controlledEntities[i] != entity.id)
+			       	newArray.push(KBEngine.app.controlledEntities[i]);
+			
+			KBEngine.app.controlledEntities = newArray
+		}
+		
+		entity.isControlled = isCont;
+		
+		try
+		{
+			entity.onControlled(isCont);
+			KBEngine.Event.fire("onControlled", entity, isCont);
+		}
+		catch (e)
+		{
+			KBEngine.ERROR_MSG("KBEngine::Client_onControlEntity: entity id = '" + eid + "', is controlled = '" + isCont + "', error = '" + e + "'");
+		}
+	}
+
 	this.updatePlayerToServer = function()
 	{
 		var player = KBEngine.app.player();
-		if(player == undefined || player.inWorld == false || KBEngine.app.spaceID == 0)
+		if(player == undefined || player.inWorld == false || KBEngine.app.spaceID == 0 || player.isControlled)
 			return;
 		
-		if(KBEngine.app.entityLastLocalPos.distance(player.position) > 0.001 || KBEngine.app.entityLastLocalDir.distance(player.direction) > 0.001)
+		if(player.entityLastLocalPos.distance(player.position) > 0.001 || player.entityLastLocalDir.distance(player.direction) > 0.001)
 		{
 			// 记录玩家最后一次上报位置时自身当前的位置
-			KBEngine.app.entityLastLocalPos.x = player.position.x;
-			KBEngine.app.entityLastLocalPos.y = player.position.y;
-			KBEngine.app.entityLastLocalPos.z = player.position.z;
-			KBEngine.app.entityLastLocalDir.x = player.direction.x;
-			KBEngine.app.entityLastLocalDir.y = player.direction.y;
-			KBEngine.app.entityLastLocalDir.z = player.direction.z;	
+			player.entityLastLocalPos.x = player.position.x;
+			player.entityLastLocalPos.y = player.position.y;
+			player.entityLastLocalPos.z = player.position.z;
+			player.entityLastLocalDir.x = player.direction.x;
+			player.entityLastLocalDir.y = player.direction.y;
+			player.entityLastLocalDir.z = player.direction.z;	
 							
 			var bundle = new KBEngine.Bundle();
 			bundle.newMessage(KBEngine.messages.Baseapp_onUpdateDataFromClient);
@@ -3692,9 +3765,40 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			bundle.writeFloat(player.direction.x);
 			bundle.writeFloat(player.direction.y);
 			bundle.writeFloat(player.direction.z);
-			bundle.writeUint8(KBEngine.app.isOnGround);
+			bundle.writeUint8(player.isOnGround);
 			bundle.writeUint32(KBEngine.app.spaceID);
 			bundle.send(KBEngine.app);
+		}
+		
+		// 开始同步所有被控制了的entity的位置
+		for (var eid in KBEngine.app.controlledEntities)  
+		{ 
+			var entity = KBEngine.app.controlledEntities[i];
+			position = entity.position;
+			direction = entity.direction;
+
+			posHasChanged = entity.entityLastLocalPos.distance(position) > 0.001;
+			dirHasChanged = entity.entityLastLocalDir.distance(direction) > 0.001;
+
+			if (posHasChanged || dirHasChanged)
+			{
+				entity.entityLastLocalPos = position;
+				entity.entityLastLocalDir = direction;
+
+				var bundle = new KBEngine.Bundle();
+				bundle.newMessage(KBEngine.messages.Baseapp_onUpdateDataFromClientForControlledEntity);
+				bundle.writeInt32(entity.id);
+				bundle.writeFloat(position.x);
+				bundle.writeFloat(position.y);
+				bundle.writeFloat(position.z);
+
+				bundle.writeFloat(direction.x);
+				bundle.writeFloat(direction.y);
+				bundle.writeFloat(direction.z);
+				bundle.writeUint8(entity.isOnGround);
+				bundle.writeUint32(KBEngine.app.spaceID);
+				bundle.send(KBEngine.app);
+			}
 		}
 	}
 	
@@ -3718,6 +3822,8 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 	this.clearEntities = function(isAll)
 	{
+		KBEngine.app.controlledEntities = []
+
 		if(!isAll)
 		{
 			var entity = KBEngine.app.player();
@@ -3836,12 +3942,12 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		entity.direction.z = stream.readFloat();
 		
 		// 记录玩家最后一次上报位置时自身当前的位置
-		KBEngine.app.entityLastLocalPos.x = entity.position.x;
-		KBEngine.app.entityLastLocalPos.y = entity.position.y;
-		KBEngine.app.entityLastLocalPos.z = entity.position.z;
-		KBEngine.app.entityLastLocalDir.x = entity.direction.x;
-		KBEngine.app.entityLastLocalDir.y = entity.direction.y;
-		KBEngine.app.entityLastLocalDir.z = entity.direction.z;	
+		entity.entityLastLocalPos.x = entity.position.x;
+		entity.entityLastLocalPos.y = entity.position.y;
+		entity.entityLastLocalPos.z = entity.position.z;
+		entity.entityLastLocalDir.x = entity.direction.x;
+		entity.entityLastLocalDir.y = entity.direction.y;
+		entity.entityLastLocalDir.z = entity.direction.z;	
 				
 		entity.set_direction(entity.direction);
 		entity.set_position(entity.position);
