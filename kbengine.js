@@ -3998,7 +3998,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		var eid = KBEngine.app.getAoiEntityIDFromStream(stream);
 		
-		var y = stream.readPackY();
+		var y = stream.readInt8();
 		
 		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, -1);
 	}
