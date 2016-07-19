@@ -2375,8 +2375,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.isLoadedGeometry = false;
 		
 		var dateObject = new Date();
-		this.lastticktime = dateObject.getTime();
-
+		this.lastTickTime = dateObject.getTime();
+		this.lastTickCBTime = dateObject.getTime();
+		
 		// 当前组件类别， 配套服务端体系
 		this.component = "client";
 	}
@@ -2539,8 +2540,16 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			return;
 
 		var dateObject = new Date();
-		if((dateObject.getTime() - KBEngine.app.lastticktime) / 1000 > 15)
+		if((dateObject.getTime() - KBEngine.app.lastTickTime) / 1000 > 15)
 		{
+			// 如果心跳回调接收时间小于心跳发送时间，说明没有收到回调
+			// 此时应该通知客户端掉线了
+			if(KBEngine.app.lastTickCBTime < KBEngine.app.lastTickTime)
+			{
+				KBEngine.ERROR_MSG("sendTick: Receive appTick timeout!");
+				KBEngine.app.socket.close();  
+			}
+			
 			if(KBEngine.app.currserver == "loginapp")
 			{
 				if(KBEngine.messages.Loginapp_onClientActiveTick != undefined)
@@ -2560,10 +2569,19 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				}
 			}
 			
-			KBEngine.app.lastticktime = dateObject.getTime();
+			KBEngine.app.lastTickTime = dateObject.getTime();
 		}
 		
 		KBEngine.app.updatePlayerToServer();
+	}
+
+	/*
+		服务器心跳回调
+	*/
+	this.Client_onAppActiveTickCB = function()
+	{
+		var dateObject = new Date();
+		KBEngine.app.lastTickCBTime = dateObject.getTime();
 	}
 
 	/*
