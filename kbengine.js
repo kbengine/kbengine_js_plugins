@@ -1280,6 +1280,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 			if(setmethod != null)
 			{
 				// base类属性或者进入世界后cell类属性会触发set_*方法
+				// ED_FLAG_BASE_AND_CLIENT、ED_FLAG_BASE
 				if(flags == 0x00000020 || flags == 0x00000040)
 				{
 					if(this.inited && !this.inWorld)
@@ -1288,7 +1289,15 @@ KBEngine.Entity = KBEngine.Class.extend(
 				else
 				{
 					if(this.inWorld)
+					{
+						if(flags == 0x00000008 || flags == 0x00000010)
+						{
+							if(!this.isPlayer())
+								continue;
+						}
+						
 						setmethod.apply(this, oldval);
+					}
 				}
 			}
 		};
