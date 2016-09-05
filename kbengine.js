@@ -2345,9 +2345,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		if(this.socket != undefined && this.socket != null)
 		{
-			this.socket.onclose = undefined;
-			this.socket.close();
+			var sock = this.socket;
+			
+			sock.onclose = undefined;
 			this.socket = null;
+			sock.close();
 		}
 		
 		this.currserver = "loginapp";
@@ -2460,9 +2462,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		{  
 			if(KBEngine.app.socket != null)
 			{
-				KBEngine.app.socket.onclose = undefined;
-				KBEngine.app.socket.close();
+				var sock = KBEngine.app.socket;
+				
+				sock.onclose = undefined;
 				KBEngine.app.socket = null;
+				sock.close();
 			}
 		}
 		catch(e)
