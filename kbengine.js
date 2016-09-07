@@ -3120,6 +3120,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.login = function(username, password, datas)
 	{  
+		KBEngine.app.reset();
 		KBEngine.app.username = username;
 		KBEngine.app.password = password;
 		KBEngine.app.clientdatas = datas;
@@ -3262,6 +3263,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.INFO_MSG("KBEngineApp::Client_onHelloCB: verInfo(" + KBEngine.app.serverVersion + "), scriptVerInfo(" + 
 			KBEngine.app.serverScriptVersion + "), serverProtocolMD5(" + KBEngine.app.serverProtocolMD5 + "), serverEntityDefMD5(" + 
 			KBEngine.app.serverEntityDefMD5 + "), ctype(" + ctype + ")!");
+		
+		var dateObject = new Date();
+		KBEngine.app.lastTickCBTime = dateObject.getTime();
 	}
 	
 	this.Client_onLoginFailed = function(args)
