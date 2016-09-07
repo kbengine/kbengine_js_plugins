@@ -3249,6 +3249,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		bundle.writeUint64(KBEngine.app.entity_uuid);
 		bundle.writeInt32(KBEngine.app.entity_id);
 		bundle.send(KBEngine.app);
+		
+		var dateObject = new Date();
+		KBEngine.app.lastTickCBTime = dateObject.getTime();
 	}
 	
 	this.Client_onHelloCB = function(args)
