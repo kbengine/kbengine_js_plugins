@@ -3335,7 +3335,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		if(entity != undefined)
 		{
 			// KBEngine.WARNING_MSG("KBEngineApp::Client_onCreatedProxies: entity(" + eid + ") has exist!");
-			return;
+			KBEngine.app.Client_onEntityDestroyed(eid);
 		}
 				
 		KBEngine.app.entity_uuid = rndUUID;
