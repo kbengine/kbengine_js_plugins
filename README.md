@@ -39,7 +39,7 @@ Usage
 		{
 			installEvents : function()
 			{
-				KBEngine.Event.registerOut("onConnectStatus", this, "onConnectStatus");
+				KBEngine.Event.register("onConnectStatus", this, "onConnectStatus");
 			}
 
 			onConnectStatus : function(success)
@@ -49,7 +49,7 @@ Usage
 		}
 
 	4: Fire events to the KBE-plugins
-		KBEngine.Event.fireIn("login", "stringAccount", "stringPasswd", System.Text.Encoding.UTF8.GetBytes("kbengine_unity3d_demo"));
+		KBEngine.Event.fire("login", this.usernamebox.getString(), this.passwordbox.getString(), "kbengine_cocos2d_js_demo");  
 
 
 
