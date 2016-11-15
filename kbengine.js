@@ -2802,19 +2802,19 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		while(!stream.readEOF())
 		{
-			var scriptmethod_name = stream.readString();
+			var scriptmodule_name = stream.readString();
 			var scriptUtype = stream.readUint16();
 			var propertysize = stream.readUint16();
 			var methodsize = stream.readUint16();
 			var base_methodsize = stream.readUint16();
 			var cell_methodsize = stream.readUint16();
 			
-			KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: import(" + scriptmethod_name + "), propertys(" + propertysize + "), " +
+			KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: import(" + scriptmodule_name + "), propertys(" + propertysize + "), " +
 					"clientMethods(" + methodsize + "), baseMethods(" + base_methodsize + "), cellMethods(" + cell_methodsize + ")!");
 			
-			KBEngine.moduledefs[scriptmethod_name] = {};
-			var currModuleDefs = KBEngine.moduledefs[scriptmethod_name];
-			currModuleDefs["name"] = scriptmethod_name;
+			KBEngine.moduledefs[scriptmodule_name] = {};
+			var currModuleDefs = KBEngine.moduledefs[scriptmodule_name];
+			currModuleDefs["name"] = scriptmodule_name;
 			currModuleDefs["propertys"] = {};
 			currModuleDefs["methods"] = {};
 			currModuleDefs["base_methods"] = {};
@@ -2828,7 +2828,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			
 			try
 			{
-				var Class = eval("KBEngine." + scriptmethod_name);
+				var Class = eval("KBEngine." + scriptmodule_name);
 			}
 			catch(e)
 			{
@@ -2867,7 +2867,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 					currModuleDefs["usePropertyDescrAlias"] = false;
 				}
 				
-				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmethod_name + "), property(" + name + "/" + properUtype + ").");
+				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmodule_name + "), property(" + name + "/" + properUtype + ").");
 			};
 			
 			while(methodsize > 0)
@@ -2900,7 +2900,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 					currModuleDefs["useMethodDescrAlias"] = false;
 				}
 				
-				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmethod_name + "), method(" + name + ").");
+				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmodule_name + "), method(" + name + ").");
 			};
 
 			while(base_methodsize > 0)
@@ -2920,7 +2920,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				};
 				
 				self_base_methods[name] = [methodUtype, aliasID, name, args];
-				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmethod_name + "), base_method(" + name + ").");
+				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmodule_name + "), base_method(" + name + ").");
 			};
 			
 			while(cell_methodsize > 0)
@@ -2940,16 +2940,16 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				};
 				
 				self_cell_methods[name] = [methodUtype, aliasID, name, args];
-				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmethod_name + "), cell_method(" + name + ").");
+				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmodule_name + "), cell_method(" + name + ").");
 			};
 			
 			try
 			{
-				defmethod = eval("KBEngine." + scriptmethod_name);
+				defmethod = eval("KBEngine." + scriptmodule_name);
 			}
 			catch(e)
 			{
-				KBEngine.ERROR_MSG("KBEngineApp::Client_onImportClientEntityDef: module(" + scriptmethod_name + ") not found!");
+				KBEngine.ERROR_MSG("KBEngineApp::Client_onImportClientEntityDef: module(" + scriptmodule_name + ") not found!");
 				defmethod = undefined;
 			}
 			
@@ -2976,7 +2976,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				
 				if(defmethod != undefined && defmethod.prototype[name] == undefined)
 				{
-					KBEngine.WARNING_MSG(scriptmethod_name + ":: method(" + name + ") no implement!");
+					KBEngine.WARNING_MSG(scriptmodule_name + ":: method(" + name + ") no implement!");
 				}
 			};
 		}
