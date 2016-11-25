@@ -1326,7 +1326,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 
 		if(this.base == undefined)
 		{
-			KBEngine.ERROR_MSG('KBEngine.Entity::cellCall: cell is None!');  
+			KBEngine.ERROR_MSG('KBEngine.Entity::baseCall: base is None!');  
 			return;			
 		}
 		
