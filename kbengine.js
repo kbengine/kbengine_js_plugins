@@ -1331,6 +1331,13 @@ KBEngine.Entity = KBEngine.Class.extend(
 		}
 		
 		var method = KBEngine.moduledefs[this.className].base_methods[arguments[0]];
+
+		if(method == undefined)
+		{
+			KBEngine.ERROR_MSG("KBEngine.Entity::baseCall: The server did not find the method(" + this.className + "." + arguments[0] + ")!");
+			return;
+		}
+		
 		var methodID = method[0];
 		var args = method[3];
 		
@@ -1383,6 +1390,13 @@ KBEngine.Entity = KBEngine.Class.extend(
 		}
 		
 		var method = KBEngine.moduledefs[this.className].cell_methods[arguments[0]];
+		
+		if(method == undefined)
+		{
+			KBEngine.ERROR_MSG("KBEngine.Entity::cellCall: The server did not find the method(" + this.className + "." + arguments[0] + ")!");
+			return;
+		}
+		
 		var methodID = method[0];
 		var args = method[3];
 		
