@@ -21,7 +21,7 @@ Usage
 			<Gate hasClient="true"></Gate>
 			<Space/>
 
-			KBEngine.Account = KBEngine.GameObject.extend(
+			KBEngine.Account = KBEngine.Entity.extend(
 			{
 				// entity initialization
 				__init__ : function()
