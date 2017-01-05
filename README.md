@@ -35,21 +35,23 @@ Usage
 			entity.cellCall("cell_func", 1, "arg2", "argN")
 
 	3: Monitor KBE-plugins event
-		var StartSceneLayer = Class.extend({
-		{
-			installEvents : function()
+		For example:
+			var StartSceneLayer = Class.extend({
 			{
-				KBEngine.Event.register("onConnectStatus", this, "onConnectStatus");
-			}
+				installEvents : function()
+				{
+					KBEngine.Event.register("onConnectStatus", this, "onConnectStatus");
+				}
 
-			onConnectStatus : function(success)
-			{
-				// KBE-plugins event fired
+				onConnectStatus : function(success)
+				{
+					// KBE-plugins event fired
+				}
 			}
-		}
 
 	4: Fire events to the KBE-plugins
-		KBEngine.Event.fire("login", this.usernamebox.getString(), this.passwordbox.getString(), "kbengine_cocos2d_js_demo");  
+		For example:
+			KBEngine.Event.fire("login", this.usernamebox.getString(), this.passwordbox.getString(), "kbengine_cocos2d_js_demo");  
 
 
 
