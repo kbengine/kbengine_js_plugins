@@ -1275,7 +1275,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 			var name = propertydata[2];
 			var setmethod = propertydata[5];
 			var flags = propertydata[6];
-			var oldval = this[properUtype];
+			var oldval = this[name];
 			
 			if(setmethod != null)
 			{
@@ -1284,7 +1284,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 				if(flags == 0x00000020 || flags == 0x00000040)
 				{
 					if(this.inited && !this.inWorld)
-						setmethod.apply(this, oldval);
+						setmethod.call(this, oldval);
 				}
 				else
 				{
@@ -1296,7 +1296,7 @@ KBEngine.Entity = KBEngine.Class.extend(
 								continue;
 						}
 						
-						setmethod.apply(this, oldval);
+						setmethod.call(this, oldval);
 					}
 				}
 			}
@@ -3441,7 +3441,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			var setmethod = propertydata[5];
 			var flags = propertydata[6];
 			var val = propertydata[4].createFromStream(stream);
-			var oldval = entity[utype];
+			var oldval = entity[propertydata[2]];
 			
 			KBEngine.INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + entity.className + "(id=" + eid  + " " + propertydata[2] + ", val=" + val + ")!");
 			
@@ -3452,12 +3452,12 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				if(flags == 0x00000020 || flags == 0x00000040)
 				{
 					if(entity.inited)
-						setmethod.apply(entity, oldval);
+						setmethod.call(entity, oldval);
 				}
 				else
 				{
 					if(entity.inWorld)
-						setmethod.apply(entity, oldval);
+						setmethod.call(entity, oldval);
 				}
 			}
 		}
