@@ -4312,9 +4312,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		if(x != KBEngine.KBE_FLT_MAX || y != KBEngine.KBE_FLT_MAX || z != KBEngine.KBE_FLT_MAX)
 			positionChanged = true;
 
-		if (x == KBEngine.KBE_FLT_MAX) x = 0.0f;
-		if (y == KBEngine.KBE_FLT_MAX) y = 0.0f;
-		if (z == KBEngine.KBE_FLT_MAX) z = 0.0f;
+		if (x == KBEngine.KBE_FLT_MAX) x = 0.0;
+		if (y == KBEngine.KBE_FLT_MAX) y = 0.0;
+		if (z == KBEngine.KBE_FLT_MAX) z = 0.0;
         
 		if(positionChanged)
 		{
