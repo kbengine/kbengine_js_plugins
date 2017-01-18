@@ -4013,7 +4013,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, r, -1);
+		KBEngine.app._updateVolatileData(eid, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, y, p, r, -1);
 	}
 	
 	this.Client_onUpdateData_yp = function(stream)
@@ -4023,7 +4023,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, p, KBEngine.KBE_FLT_MAX, -1);
+		KBEngine.app._updateVolatileData(eid, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, y, p, KBEngine.KBE_FLT_MAX, -1);
 	}
 	
 	this.Client_onUpdateData_yr = function(stream)
@@ -4033,7 +4033,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, r, -1);
+		KBEngine.app._updateVolatileData(eid, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, y, KBEngine.KBE_FLT_MAX, r, -1);
 	}
 	
 	this.Client_onUpdateData_pr = function(stream)
@@ -4043,7 +4043,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, r, -1);
+		KBEngine.app._updateVolatileData(eid, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, p, r, -1);
 	}
 	
 	this.Client_onUpdateData_y = function(stream)
@@ -4052,7 +4052,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var y = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, -1);
+		KBEngine.app._updateVolatileData(eid, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, -1);
 	}
 	
 	this.Client_onUpdateData_p = function(stream)
@@ -4061,7 +4061,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX, -1);
+		KBEngine.app._updateVolatileData(eid, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX, -1);
 	}
 	
 	this.Client_onUpdateData_r = function(stream)
@@ -4070,7 +4070,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, 0.0, 0.0, 0.0, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r, -1);
+		KBEngine.app._updateVolatileData(eid, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r, -1);
 	}
 	
 	this.Client_onUpdateData_xz = function(stream)
@@ -4079,7 +4079,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var xz = stream.readPackXZ();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_ypr = function(stream)
@@ -4092,7 +4092,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, r, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], y, p, r, 1);
 	}
 	
 	this.Client_onUpdateData_xz_yp = function(stream)
@@ -4104,7 +4104,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, p, KBEngine.KBE_FLT_MAX, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], y, p, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_yr = function(stream)
@@ -4116,7 +4116,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var y = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, r, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], y, KBEngine.KBE_FLT_MAX, r, 1);
 	}
 	
 	this.Client_onUpdateData_xz_pr = function(stream)
@@ -4128,7 +4128,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var p = stream.readInt8();
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, r, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], KBEngine.KBE_FLT_MAX, p, r, 1);
 	}
 	
 	this.Client_onUpdateData_xz_y = function(stream)
@@ -4139,7 +4139,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 		var y = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], y, KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_p = function(stream)
@@ -4150,7 +4150,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 		var p = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], KBEngine.KBE_FLT_MAX, p, KBEngine.KBE_FLT_MAX, 1);
 	}
 	
 	this.Client_onUpdateData_xz_r = function(stream)
@@ -4161,7 +4161,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 		var r = stream.readInt8();
 		
-		KBEngine.app._updateVolatileData(eid, xz[0], 0.0, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r, 1);
+		KBEngine.app._updateVolatileData(eid, xz[0], KBEngine.KBE_FLT_MAX, xz[1], KBEngine.KBE_FLT_MAX, KBEngine.KBE_FLT_MAX, r, 1);
 	}
 	
 	this.Client_onUpdateData_xyz = function(stream)
@@ -4308,7 +4308,15 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			done = true;
 		}
 		
-		if(Math.abs(x + y + z) > 0.00001)
+		var positionChanged = false;
+		if(x != KBEngine.KBE_FLT_MAX || y != KBEngine.KBE_FLT_MAX || z != KBEngine.KBE_FLT_MAX)
+			positionChanged = true;
+
+		if (x == KBEngine.KBE_FLT_MAX) x = 0.0f;
+		if (y == KBEngine.KBE_FLT_MAX) y = 0.0f;
+		if (z == KBEngine.KBE_FLT_MAX) z = 0.0f;
+        
+		if(positionChanged)
 		{
 			entity.position.x = x + KBEngine.app.entityServerPos.x;
 			entity.position.y = y + KBEngine.app.entityServerPos.y;
