@@ -3346,42 +3346,48 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		var entity = KBEngine.app.entities[eid];
 		
-		if(entity != undefined)
-		{
-			// KBEngine.WARNING_MSG("KBEngineApp::Client_onCreatedProxies: entity(" + eid + ") has exist!");
-			KBEngine.app.Client_onEntityDestroyed(eid);
-		}
-				
 		KBEngine.app.entity_uuid = rndUUID;
 		KBEngine.app.entity_id = eid;
 		
-		var runclass = KBEngine.app.getentityclass(entityType);
-		if(runclass == undefined)
-			return;
-		
-		var entity = new runclass();
-		entity.id = eid;
-		entity.className = entityType;
-		
-		entity.base = new KBEngine.Mailbox();
-		entity.base.id = eid;
-		entity.base.className = entityType;
-		entity.base.type = KBEngine.MAILBOX_TYPE_BASE;
-		
-		KBEngine.app.entities[eid] = entity;
-		
-		var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
-		if(entityMessage != undefined)
+		if(entity == undefined)
 		{
-			KBEngine.app.Client_onUpdatePropertys(entityMessage);
-			delete KBEngine.bufferedCreateEntityMessage[eid];
-		}
+			var runclass = KBEngine.app.getentityclass(entityType);
+			if(runclass == undefined)
+				return;
 			
-		entity.__init__();
-		entity.inited = true;
-		
-		if(KBEngine.app.args.isOnInitCallPropertysSetMethods)
-			entity.callPropertysSetMethods();
+			var entity = new runclass();
+			entity.id = eid;
+			entity.className = entityType;
+			
+			entity.base = new KBEngine.Mailbox();
+			entity.base.id = eid;
+			entity.base.className = entityType;
+			entity.base.type = KBEngine.MAILBOX_TYPE_BASE;
+			
+			KBEngine.app.entities[eid] = entity;
+			
+			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			if(entityMessage != undefined)
+			{
+				KBEngine.app.Client_onUpdatePropertys(entityMessage);
+				delete KBEngine.bufferedCreateEntityMessage[eid];
+			}
+				
+			entity.__init__();
+			entity.inited = true;
+			
+			if(KBEngine.app.args.isOnInitCallPropertysSetMethods)
+				entity.callPropertysSetMethods();
+		}
+		else
+		{
+			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			if(entityMessage != undefined)
+			{
+				KBEngine.app.Client_onUpdatePropertys(entityMessage);
+				delete KBEngine.bufferedCreateEntityMessage[eid];
+			}
+		}
 	}
 	
 	this.getAoiEntityIDFromStream = function(stream)
