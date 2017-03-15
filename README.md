@@ -40,10 +40,10 @@ Usage
 			{
 				installEvents : function()
 				{
-					KBEngine.Event.register("onConnectStatus", this, "onConnectStatus");
+					KBEngine.Event.register("onConnectionState", this, "onConnectionState");
 				}
 
-				onConnectStatus : function(success)
+				onConnectionState : function(success)
 				{
 					// KBE-plugins event fired
 				}
@@ -181,7 +181,7 @@ KBE-Plugin fire-out events(KBE => Unity):
 			Event-datas: 
 				No datas.
 
-		onReLoginBaseapp
+		onReloginBaseapp
 			Description: 
 				Relogin to baseapp.
 
@@ -212,7 +212,7 @@ KBE-Plugin fire-out events(KBE => Unity):
 				uint16: retcode
 					http://kbengine.org/docs/configuration/server_errors.html
 
-		onReLoginBaseappFailed
+		onReloginBaseappFailed
 			Description: 
 				Relogin baseapp failed.
 
@@ -220,7 +220,7 @@ KBE-Plugin fire-out events(KBE => Unity):
 				uint16: retcode
 					http://kbengine.org/docs/configuration/server_errors.html
 
-		onReLoginBaseappSuccessfully
+		onReloginBaseappSuccessfully
 			Description: 
 				Relogin baseapp success.
 
@@ -254,14 +254,14 @@ KBE-Plugin fire-out events(KBE => Unity):
 				string: key
 
 	Network events:
-		onConnectStatus
+		onConnectionState
 			Description: 
 				Status of connection server.
 
 			Event-datas: 
 				bool: success or fail
 
-		onDisableConnect
+		onDisconnected
 			Description: 
 				Status of connection server.
 
@@ -298,7 +298,7 @@ KBE-Plugin fire-in events(Unity => KBE):
 					Data will be recorded into the KBE account database, you can access the datas through the script layer.
 					If you use third-party account system, datas will be submitted to the third-party system.
 
-	reLoginBaseapp
+	reloginBaseapp
 			Description: 
 				Relogin to baseapp.
 

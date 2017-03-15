@@ -2377,7 +2377,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		this.serverScriptVersion = "";
 		this.serverProtocolMD5 = "";
 		this.serverEntityDefMD5 = "";
-		this.clientVersion = "0.9.0";
+		this.clientVersion = "0.9.12";
 		this.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -2411,14 +2411,14 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		KBEngine.Event.register("createAccount", this, "createAccount");
 		KBEngine.Event.register("login", this, "login");
-		KBEngine.Event.register("reLoginBaseapp", this, "reLoginBaseapp");
+		KBEngine.Event.register("reloginBaseapp", this, "reloginBaseapp");
 		KBEngine.Event.register("bindAccountEmail", this, "bindAccountEmail");
 		KBEngine.Event.register("newPassword", this, "newPassword");
 	}
 
 	this.uninstallEvents = function()
 	{
-		KBEngine.Event.deregister("reLoginBaseapp", this);
+		KBEngine.Event.deregister("reloginBaseapp", this);
 		KBEngine.Event.deregister("login", this);
 		KBEngine.Event.deregister("createAccount", this);
 	}
@@ -2459,7 +2459,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		catch(e)
 		{  
 			KBEngine.ERROR_MSG('WebSocket init error!');  
-			KBEngine.Event.fire("onConnectStatus", false);
+			KBEngine.Event.fire("onConnectionState", false);
 			return;  
 		}
 		
@@ -2492,19 +2492,19 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{  
 		KBEngine.INFO_MSG('connect success!');
 		KBEngine.app.socket.onerror = KBEngine.app.onerror_after_onopen;
-		KBEngine.Event.fire("onConnectStatus", true);
+		KBEngine.Event.fire("onConnectionState", true);
 	}
 
 	this.onerror_before_onopen = function(evt)
 	{  
 		KBEngine.ERROR_MSG('connect error:' + evt.data);
-		KBEngine.Event.fire("onConnectStatus", false);
+		KBEngine.Event.fire("onConnectionState", false);
 	}
 	
 	this.onerror_after_onopen = function(evt)
 	{
 		KBEngine.ERROR_MSG('connect error:' + evt.data);
-		KBEngine.Event.fire("onDisableConnect");
+		KBEngine.Event.fire("onDisconnected");
 	}
 	
 	this.onmessage = function(msg)
@@ -2546,7 +2546,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.onclose = function()
 	{  
 		KBEngine.INFO_MSG('connect close:' + KBEngine.app.currserver);
-		KBEngine.Event.fire("onDisableConnect");
+		KBEngine.Event.fire("onDisconnected");
 		//if(KBEngine.app.currserver != "loginapp")
 		//	KBEngine.app.reset();
 	}
@@ -2650,7 +2650,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.onOpenLoginapp_login = function()
 	{  
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_login: successfully!");
-		KBEngine.Event.fire("onConnectStatus", true);
+		KBEngine.Event.fire("onConnectionState", true);
 		
 		KBEngine.app.currserver = "loginapp";
 		KBEngine.app.currstate = "login";
@@ -2672,7 +2672,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.onOpenLoginapp_createAccount = function()
 	{  
-		KBEngine.Event.fire("onConnectStatus", true);
+		KBEngine.Event.fire("onConnectionState", true);
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_createAccount: successfully!");
 		KBEngine.app.currserver = "loginapp";
 		KBEngine.app.currstate = "createAccount";
@@ -3243,10 +3243,10 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 	}
 	
-	this.reLoginBaseapp = function()
+	this.reloginBaseapp = function()
 	{  
-		KBEngine.Event.fire("onReLoginBaseapp");
-		KBEngine.INFO_MSG("KBEngineApp::reLoginBaseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
+		KBEngine.Event.fire("onReloginBaseapp");
+		KBEngine.INFO_MSG("KBEngineApp::reloginBaseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
 		KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
 		KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;  
 	}
@@ -3257,7 +3257,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.currserver = "baseapp";
 		
 		var bundle = new KBEngine.Bundle();
-		bundle.newMessage(KBEngine.messages.Baseapp_reLoginBaseapp);
+		bundle.newMessage(KBEngine.messages.Baseapp_reloginBaseapp);
 		bundle.writeString(KBEngine.app.username);
 		bundle.writeString(KBEngine.app.password);
 		bundle.writeUint64(KBEngine.app.entity_uuid);
@@ -3314,11 +3314,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.Event.fire("onLoginBaseappFailed", failedcode);
 	}
 
-	this.Client_onReLoginBaseappSuccessfully = function(stream)
+	this.Client_onReloginBaseappSuccessfully = function(stream)
 	{
 		KBEngine.app.entity_uuid = stream.readUint64();
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onReLoginBaseappSuccessfully: " + KBEngine.app.username);
-		KBEngine.Event.fire("onReLoginBaseappSuccessfully");
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onReloginBaseappSuccessfully: " + KBEngine.app.username);
+		KBEngine.Event.fire("onReloginBaseappSuccessfully");
 	}
 	
 	this.entityclass = {};
