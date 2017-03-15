@@ -1921,62 +1921,23 @@ KBEngine.DATATYPE_STRING = function()
 	}
 }
 
-KBEngine.DATATYPE_VECTOR = function(size)
+KBEngine.DATATYPE_VECTOR2 = function()
 {
-	this.itemsize = size;
-	
 	this.bind = function()
 	{
 	}
 	
 	this.createFromStream = function(stream)
 	{
-		
-		var size = KBEngine.reader.readUint32.call(stream);
-		if(size != this.itemsize)
+		if(KBEngine.CLIENT_NO_FLOAT)
 		{
-			KBEngine.ERROR_MSG("KBEDATATYPE_VECTOR::createFromStream: size(" + size + ") != thisSize(" + this.itemsize + ") !");
-			return undefined;
+			return new KBEngine.Vector2(KBEngine.reader.readInt32.call(stream), 
+				KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
 		}
-		
-		if(this.itemsize == 3)
+		else
 		{
-			if(KBEngine.CLIENT_NO_FLOAT)
-			{
-				return new KBEngine.Vector3(KBEngine.reader.readInt32.call(stream), 
-					KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
-			}
-			else
-			{
-				return new KBEngine.Vector3(KBEngine.reader.readFloat.call(stream), 
-					KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
-			}
-		}
-		else if(this.itemsize == 4)
-		{
-			if(KBEngine.CLIENT_NO_FLOAT)
-			{
-				return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), 
-					KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
-			}
-			else
-			{
-				return new KBEngine.Vector4(KBEngine.reader.readFloat.call(stream), 
-					KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
-			}
-		}
-		else if(this.itemsize == 2)
-		{
-			if(KBEngine.CLIENT_NO_FLOAT)
-			{
-				return new KBEngine.Vector2(KBEngine.reader.readInt32.call(stream), 
-					KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
-			}
-			else
-			{
-				return new KBEngine.Vector2(KBEngine.reader.readFloat.call(stream), 
-					KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
-			}
+			return new KBEngine.Vector2(KBEngine.reader.readFloat.call(stream), 
+				KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
 		}
 		
 		return undefined;
@@ -1984,8 +1945,6 @@ KBEngine.DATATYPE_VECTOR = function(size)
 	
 	this.addToStream = function(stream, v)
 	{
-		stream.writeUint32(this.itemsize);
-		
 		if(KBEngine.CLIENT_NO_FLOAT)
 		{
 			stream.writeInt32(v.x);
@@ -1996,30 +1955,59 @@ KBEngine.DATATYPE_VECTOR = function(size)
 			stream.writeFloat(v.x);
 			stream.writeFloat(v.y);			
 		}
-		
-		if(this.itemsize == 3)
+	}
+	
+	this.parseDefaultValStr = function(v)
+	{
+		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		if(! v instanceof KBEngine.Vector2)
 		{
-			if(KBEngine.CLIENT_NO_FLOAT)
-			{
-				stream.writeInt32(v.z);
-			}
-			else
-			{
-				stream.writeFloat(v.z);
-			}
+			return false;
 		}
-		else if(this.itemsize == 4)
+		
+		return true;
+	}
+}
+
+KBEngine.DATATYPE_VECTOR3 = function()
+{
+	this.bind = function()
+	{
+	}
+	
+	this.createFromStream = function(stream)
+	{
+		if(KBEngine.CLIENT_NO_FLOAT)
 		{
-			if(KBEngine.CLIENT_NO_FLOAT)
-			{
-				stream.writeInt32(v.z);
-				stream.writeInt32(v.w);
-			}
-			else
-			{
-				stream.writeFloat(v.z);
-				stream.writeFloat(v.w);			
-			}
+			return new KBEngine.Vector3(KBEngine.reader.readInt32.call(stream), 
+				KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+		}
+		else
+		{
+			return new KBEngine.Vector3(KBEngine.reader.readFloat.call(stream), 
+				KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+		}
+	
+		return undefined;
+	}
+	
+	this.addToStream = function(stream, v)
+	{
+		if(KBEngine.CLIENT_NO_FLOAT)
+		{
+			stream.writeInt32(v.x);
+			stream.writeInt32(v.y);
+			stream.writeInt32(v.z);
+		}
+		else
+		{
+			stream.writeFloat(v.x);
+			stream.writeFloat(v.y);
+			stream.writeFloat(v.z);
 		}
 	}
 	
@@ -2030,26 +2018,65 @@ KBEngine.DATATYPE_VECTOR = function(size)
 	
 	this.isSameType = function(v)
 	{
-		if(this.itemsize == 2)
+		if(! v instanceof KBEngine.Vector3)
 		{
-			if(! v instanceof KBEngine.Vector2)
-			{
-				return false;
-			}
+			return false;
 		}
-		else if(this.itemsize == 3)
+		
+		return true;
+	}
+}
+
+KBEngine.DATATYPE_VECTOR4 = function()
+{
+	this.bind = function()
+	{
+	}
+	
+	this.createFromStream = function(stream)
+	{
+		if(KBEngine.CLIENT_NO_FLOAT)
 		{
-			if(! v instanceof KBEngine.Vector3)
-			{
-				return false;
-			}
+			return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), 
+				KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
 		}
-		else if(this.itemsize == 4)
+		else
 		{
-			if(! v instanceof KBEngine.Vector4)
-			{
-				return false;
-			}
+			return new KBEngine.Vector4(KBEngine.reader.readFloat.call(stream), 
+				KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+		}
+		
+		return undefined;
+	}
+	
+	this.addToStream = function(stream, v)
+	{
+		if(KBEngine.CLIENT_NO_FLOAT)
+		{
+			stream.writeInt32(v.x);
+			stream.writeInt32(v.y);
+			stream.writeInt32(v.z);
+			stream.writeInt32(v.w);
+		}
+		else
+		{
+			stream.writeFloat(v.x);
+			stream.writeFloat(v.y);		
+			stream.writeFloat(v.z);
+			stream.writeFloat(v.w);		
+		}
+	}
+	
+	this.parseDefaultValStr = function(v)
+	{
+		return eval(v);
+	}
+	
+	this.isSameType = function(v)
+	{
+		if(! v instanceof KBEngine.Vector4)
+		{
+			return false;
 		}
 		
 		return true;
@@ -2286,9 +2313,9 @@ KBEngine.datatypes["FLOAT"]		= new KBEngine.DATATYPE_FLOAT();
 KBEngine.datatypes["DOUBLE"]	= new KBEngine.DATATYPE_DOUBLE();
 
 KBEngine.datatypes["STRING"]	= new KBEngine.DATATYPE_STRING();
-KBEngine.datatypes["VECTOR2"]	= new KBEngine.DATATYPE_VECTOR(2);
-KBEngine.datatypes["VECTOR3"]	= new KBEngine.DATATYPE_VECTOR(3);
-KBEngine.datatypes["VECTOR4"]	= new KBEngine.DATATYPE_VECTOR(4);
+KBEngine.datatypes["VECTOR2"]	= new KBEngine.DATATYPE_VECTOR2;
+KBEngine.datatypes["VECTOR3"]	= new KBEngine.DATATYPE_VECTOR3;
+KBEngine.datatypes["VECTOR4"]	= new KBEngine.DATATYPE_VECTOR4;
 KBEngine.datatypes["PYTHON"]	= new KBEngine.DATATYPE_PYTHON();
 KBEngine.datatypes["UNICODE"]	= new KBEngine.DATATYPE_UNICODE();
 KBEngine.datatypes["MAILBOX"]	= new KBEngine.DATATYPE_MAILBOX();
