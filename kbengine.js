@@ -2376,78 +2376,89 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	// 服务端分配的baseapp地址
 	this.baseappIP = "";
 	this.baseappPort = 0;
-			
+
+	this.resetSocket = function()
+	{
+		try
+		{  
+			if(KBEngine.app.socket != undefined && KBEngine.app.socket != null)
+			{
+				var sock = KBEngine.app.socket;
+				
+				sock.onclose = undefined;
+				KBEngine.app.socket = null;
+				sock.close();
+			}
+		}
+		catch(e)
+		{ 
+		}
+	}
+	
 	this.reset = function()
 	{
-		if(this.entities != undefined && this.entities != null)
+		if(KBEngine.app.entities != undefined && KBEngine.app.entities != null)
 		{
-			this.clearEntities(true);
+			KBEngine.app.clearEntities(true);
 		}
 		
-		if(this.socket != undefined && this.socket != null)
-		{
-			var sock = this.socket;
-			
-			sock.onclose = undefined;
-			this.socket = null;
-			sock.close();
-		}
+		KBEngine.app.resetSocket();
 		
-		this.currserver = "loginapp";
-		this.currstate = "create";
+		KBEngine.app.currserver = "loginapp";
+		KBEngine.app.currstate = "create";
 		
 		// 扩展数据
-		this.serverdatas = "";
+		KBEngine.app.serverdatas = "";
 		
 		// 版本信息
-		this.serverVersion = "";
-		this.serverScriptVersion = "";
-		this.serverProtocolMD5 = "";
-		this.serverEntityDefMD5 = "";
-		this.clientVersion = "0.9.12";
-		this.clientScriptVersion = "0.1.0";
+		KBEngine.app.serverVersion = "";
+		KBEngine.app.serverScriptVersion = "";
+		KBEngine.app.serverProtocolMD5 = "";
+		KBEngine.app.serverEntityDefMD5 = "";
+		KBEngine.app.clientVersion = "0.9.12";
+		KBEngine.app.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
-		this.entity_uuid = null;
-		this.entity_id = 0;
-		this.entity_type = "";
+		KBEngine.app.entity_uuid = null;
+		KBEngine.app.entity_id = 0;
+		KBEngine.app.entity_type = "";
 
 		// 当前玩家最后一次同步到服务端的位置与朝向与服务端最后一次同步过来的位置
-		this.entityServerPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
+		KBEngine.app.entityServerPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
 		
 		// 客户端所有的实体
-		this.entities = {};
-		this.entityIDAliasIDList = [];
-		this.controlledEntities = [];
+		KBEngine.app.entities = {};
+		KBEngine.app.entityIDAliasIDList = [];
+		KBEngine.app.controlledEntities = [];
 
 		// 空间的信息
-		this.spacedata = {};
-		this.spaceID = 0;
-		this.spaceResPath = "";
-		this.isLoadedGeometry = false;
+		KBEngine.app.spacedata = {};
+		KBEngine.app.spaceID = 0;
+		KBEngine.app.spaceResPath = "";
+		KBEngine.app.isLoadedGeometry = false;
 		
 		var dateObject = new Date();
-		this.lastTickTime = dateObject.getTime();
-		this.lastTickCBTime = dateObject.getTime();
+		KBEngine.app.lastTickTime = dateObject.getTime();
+		KBEngine.app.lastTickCBTime = dateObject.getTime();
 		
 		// 当前组件类别， 配套服务端体系
-		this.component = "client";
+		KBEngine.app.component = "client";
 	}
 
 	this.installEvents = function()
 	{
-		KBEngine.Event.register("createAccount", this, "createAccount");
-		KBEngine.Event.register("login", this, "login");
-		KBEngine.Event.register("reloginBaseapp", this, "reloginBaseapp");
-		KBEngine.Event.register("bindAccountEmail", this, "bindAccountEmail");
-		KBEngine.Event.register("newPassword", this, "newPassword");
+		KBEngine.Event.register("createAccount", KBEngine.app, "createAccount");
+		KBEngine.Event.register("login", KBEngine.app, "login");
+		KBEngine.Event.register("reloginBaseapp", KBEngine.app, "reloginBaseapp");
+		KBEngine.Event.register("bindAccountEmail", KBEngine.app, "bindAccountEmail");
+		KBEngine.Event.register("newPassword", KBEngine.app, "newPassword");
 	}
 
 	this.uninstallEvents = function()
 	{
-		KBEngine.Event.deregister("reloginBaseapp", this);
-		KBEngine.Event.deregister("login", this);
-		KBEngine.Event.deregister("createAccount", this);
+		KBEngine.Event.deregister("reloginBaseapp", KBEngine.app);
+		KBEngine.Event.deregister("login", KBEngine.app);
+		KBEngine.Event.deregister("createAccount", KBEngine.app);
 	}
 	
 	this.hello = function()
@@ -2499,20 +2510,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 	this.disconnect = function()
 	{
-		try
-		{  
-			if(KBEngine.app.socket != null)
-			{
-				var sock = KBEngine.app.socket;
-				
-				sock.onclose = undefined;
-				KBEngine.app.socket = null;
-				sock.close();
-			}
-		}
-		catch(e)
-		{ 
-		}
+		KBEngine.app.resetSocket();
 	}
 	
 	this.onopen = function()
@@ -3027,16 +3025,16 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 	this.Client_onVersionNotMatch = function(stream)
 	{
-		this.serverVersion = stream.readString();
+		KBEngine.app.serverVersion = stream.readString();
 		KBEngine.ERROR_MSG("Client_onVersionNotMatch: verInfo=" + KBEngine.app.clientVersion + " not match(server: " + KBEngine.app.serverVersion + ")");
-		KBEngine.Event.fire("onVersionNotMatch", this.clientVersion, this.serverVersion);
+		KBEngine.Event.fire("onVersionNotMatch", KBEngine.app.clientVersion, KBEngine.app.serverVersion);
 	}
 
 	this.Client_onScriptVersionNotMatch = function(stream)
 	{
-		this.serverScriptVersion = stream.readString();
+		KBEngine.app.serverScriptVersion = stream.readString();
 		KBEngine.ERROR_MSG("Client_onScriptVersionNotMatch: verInfo=" + KBEngine.app.clientScriptVersion + " not match(server: " + KBEngine.app.serverScriptVersion + ")");
-		KBEngine.Event.fire("onScriptVersionNotMatch", this.clientScriptVersion, this.serverScriptVersion);
+		KBEngine.Event.fire("onScriptVersionNotMatch", KBEngine.app.clientScriptVersion, KBEngine.app.serverScriptVersion);
 	}
 	
 	this.onImportEntityDefCompleted = function()
@@ -3258,7 +3256,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			KBEngine.Event.fire("onLoginBaseapp");
 			KBEngine.INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
 			KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
-			KBEngine.app.socket.onopen = KBEngine.app.onOpenBaseapp;  
+			
+			if(KBEngine.app.socket != undefined && KBEngine.app.socket != null)
+				KBEngine.app.socket.onopen = KBEngine.app.onOpenBaseapp;  
 		}
 		else
 		{
@@ -3272,10 +3272,13 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.reloginBaseapp = function()
 	{  
+		KBEngine.app.resetSocket();
 		KBEngine.Event.fire("onReloginBaseapp");
 		KBEngine.INFO_MSG("KBEngineApp::reloginBaseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
 		KBEngine.app.connect("ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
-		KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;  
+		
+		if(KBEngine.app.socket != undefined && KBEngine.app.socket != null)
+			KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;  
 	}
 	
 	this.onReOpenBaseapp = function()
