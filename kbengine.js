@@ -897,75 +897,81 @@ KBEngine.Bundle = function()
 -----------------------------------------------------------------------------------------*/
 KBEngine.reader = new KBEngine.MemoryStream(0);
 KBEngine.datatype2id = {};
-KBEngine.datatype2id["STRING"] = 1;
-KBEngine.datatype2id["STD::STRING"] = 1;
 
-KBEngine.datatype2id["UINT8"] = 2;
-KBEngine.datatype2id["BOOL"] = 2;
-KBEngine.datatype2id["DATATYPE"] = 2;
-KBEngine.datatype2id["CHAR"] = 2;
-KBEngine.datatype2id["DETAIL_TYPE"] = 2;
-KBEngine.datatype2id["MAIL_TYPE"] = 2;
+KBEngine.mappingDataType = function(writer, argType)
+{
+	KBEngine.datatype2id = {};
+	KBEngine.datatype2id["STRING"] = 1;
+	KBEngine.datatype2id["STD::STRING"] = 1;
 
-KBEngine.datatype2id["UINT16"] = 3;
-KBEngine.datatype2id["UNSIGNED SHORT"] = 3;
-KBEngine.datatype2id["SERVER_ERROR_CODE"] = 3;
-KBEngine.datatype2id["ENTITY_TYPE"] = 3;
-KBEngine.datatype2id["ENTITY_PROPERTY_UID"] = 3;
-KBEngine.datatype2id["ENTITY_METHOD_UID"] = 3;
-KBEngine.datatype2id["ENTITY_SCRIPT_UID"] = 3;
-KBEngine.datatype2id["DATATYPE_UID"] = 3;
+	KBEngine.datatype2id["UINT8"] = 2;
+	KBEngine.datatype2id["BOOL"] = 2;
+	KBEngine.datatype2id["DATATYPE"] = 2;
+	KBEngine.datatype2id["CHAR"] = 2;
+	KBEngine.datatype2id["DETAIL_TYPE"] = 2;
+	KBEngine.datatype2id["MAIL_TYPE"] = 2;
 
-KBEngine.datatype2id["UINT32"] = 4;
-KBEngine.datatype2id["UINT"] = 4;
-KBEngine.datatype2id["UNSIGNED INT"] = 4;
-KBEngine.datatype2id["ARRAYSIZE"] = 4;
-KBEngine.datatype2id["SPACE_ID"] = 4;
-KBEngine.datatype2id["GAME_TIME"] = 4;
-KBEngine.datatype2id["TIMER_ID"] = 4;
+	KBEngine.datatype2id["UINT16"] = 3;
+	KBEngine.datatype2id["UNSIGNED SHORT"] = 3;
+	KBEngine.datatype2id["SERVER_ERROR_CODE"] = 3;
+	KBEngine.datatype2id["ENTITY_TYPE"] = 3;
+	KBEngine.datatype2id["ENTITY_PROPERTY_UID"] = 3;
+	KBEngine.datatype2id["ENTITY_METHOD_UID"] = 3;
+	KBEngine.datatype2id["ENTITY_SCRIPT_UID"] = 3;
+	KBEngine.datatype2id["DATATYPE_UID"] = 3;
 
-KBEngine.datatype2id["UINT64"] = 5;
-KBEngine.datatype2id["DBID"] = 5;
-KBEngine.datatype2id["COMPONENT_ID"] = 5;
+	KBEngine.datatype2id["UINT32"] = 4;
+	KBEngine.datatype2id["UINT"] = 4;
+	KBEngine.datatype2id["UNSIGNED INT"] = 4;
+	KBEngine.datatype2id["ARRAYSIZE"] = 4;
+	KBEngine.datatype2id["SPACE_ID"] = 4;
+	KBEngine.datatype2id["GAME_TIME"] = 4;
+	KBEngine.datatype2id["TIMER_ID"] = 4;
 
-KBEngine.datatype2id["INT8"] = 6;
-KBEngine.datatype2id["COMPONENT_ORDER"] = 6;
+	KBEngine.datatype2id["UINT64"] = 5;
+	KBEngine.datatype2id["DBID"] = 5;
+	KBEngine.datatype2id["COMPONENT_ID"] = 5;
 
-KBEngine.datatype2id["INT16"] = 7;
-KBEngine.datatype2id["SHORT"] = 7;
+	KBEngine.datatype2id["INT8"] = 6;
+	KBEngine.datatype2id["COMPONENT_ORDER"] = 6;
 
-KBEngine.datatype2id["INT32"] = 8;
-KBEngine.datatype2id["INT"] = 8;
-KBEngine.datatype2id["ENTITY_ID"] = 8;
-KBEngine.datatype2id["CALLBACK_ID"] = 8;
-KBEngine.datatype2id["COMPONENT_TYPE"] = 8;
+	KBEngine.datatype2id["INT16"] = 7;
+	KBEngine.datatype2id["SHORT"] = 7;
 
-KBEngine.datatype2id["INT64"] = 9;
+	KBEngine.datatype2id["INT32"] = 8;
+	KBEngine.datatype2id["INT"] = 8;
+	KBEngine.datatype2id["ENTITY_ID"] = 8;
+	KBEngine.datatype2id["CALLBACK_ID"] = 8;
+	KBEngine.datatype2id["COMPONENT_TYPE"] = 8;
 
-KBEngine.datatype2id["PYTHON"] = 10;
-KBEngine.datatype2id["PY_DICT"] = 10;
-KBEngine.datatype2id["PY_TUPLE"] = 10;
-KBEngine.datatype2id["PY_LIST"] = 10;
-KBEngine.datatype2id["MAILBOX"] = 10;
+	KBEngine.datatype2id["INT64"] = 9;
 
-KBEngine.datatype2id["BLOB"] = 11;
+	KBEngine.datatype2id["PYTHON"] = 10;
+	KBEngine.datatype2id["PY_DICT"] = 10;
+	KBEngine.datatype2id["PY_TUPLE"] = 10;
+	KBEngine.datatype2id["PY_LIST"] = 10;
+	KBEngine.datatype2id["MAILBOX"] = 10;
 
-KBEngine.datatype2id["UNICODE"] = 12;
+	KBEngine.datatype2id["BLOB"] = 11;
 
-KBEngine.datatype2id["FLOAT"] = 13;
+	KBEngine.datatype2id["UNICODE"] = 12;
 
-KBEngine.datatype2id["DOUBLE"] = 14;
+	KBEngine.datatype2id["FLOAT"] = 13;
 
-KBEngine.datatype2id["VECTOR2"] = 15;
+	KBEngine.datatype2id["DOUBLE"] = 14;
 
-KBEngine.datatype2id["VECTOR3"] = 16;
+	KBEngine.datatype2id["VECTOR2"] = 15;
 
-KBEngine.datatype2id["VECTOR4"] = 17;
+	KBEngine.datatype2id["VECTOR3"] = 16;
 
-KBEngine.datatype2id["FIXED_DICT"] = 18;
+	KBEngine.datatype2id["VECTOR4"] = 17;
 
-KBEngine.datatype2id["ARRAY"] = 19;
+	KBEngine.datatype2id["FIXED_DICT"] = 18;
 
+	KBEngine.datatype2id["ARRAY"] = 19;
+}
+
+KBEngine.mappingDataType();
 
 KBEngine.bindwriter = function(writer, argType)
 {
@@ -2440,6 +2446,8 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var dateObject = new Date();
 		KBEngine.app.lastTickTime = dateObject.getTime();
 		KBEngine.app.lastTickCBTime = dateObject.getTime();
+		
+		KBEngine.mappingDataType();
 		
 		// 当前组件类别， 配套服务端体系
 		KBEngine.app.component = "client";
@@ -4420,6 +4428,12 @@ KBEngine.create = function(kbengineArgs)
 {
 	if(KBEngine.app != undefined)
 		return;
+
+	if(kbengineArgs.constructor != KBEngine.KBEngineArgs)
+	{
+		KBEngine.ERROR_MSG("KBEngine.create(): args(" + kbengineArgs + ") error! not is KBEngine.KBEngineArgs");
+		return;
+	}
 	
 	new KBEngine.KBEngineApp(kbengineArgs);
 	
