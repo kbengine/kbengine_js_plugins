@@ -3356,7 +3356,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.Event.fire("onLoginBaseappFailed", failedcode);
 	}
 
-	this.Client_onLoginBaseappFailed = function(failedcode)
+	this.Client_onReloginBaseappFailed = function(failedcode)
 	{
 		KBEngine.ERROR_MSG("KBEngineApp::Client_onReloginBaseappFailed: failedcode(" + KBEngine.app.serverErrs[failedcode].name + ")!");
 		KBEngine.Event.fire("onReloginBaseappFailed", failedcode);
