@@ -3365,7 +3365,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.Client_onReloginBaseappSuccessfully = function(stream)
 	{
 		KBEngine.app.entity_uuid = stream.readUint64();
-		KBEngine.ERROR_MSG("KBEngineApp::Client_onReloginBaseappSuccessfully: " + KBEngine.app.username);
+		KBEngine.DEBUG_MSG("KBEngineApp::Client_onReloginBaseappSuccessfully: " + KBEngine.app.username);
 		KBEngine.Event.fire("onReloginBaseappSuccessfully");
 	}
 	
