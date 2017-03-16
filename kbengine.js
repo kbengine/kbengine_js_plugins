@@ -2523,12 +2523,14 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.onerror_before_onopen = function(evt)
 	{  
 		KBEngine.ERROR_MSG('connect error:' + evt.data);
+		KBEngine.app.resetSocket();
 		KBEngine.Event.fire("onConnectionState", false);
 	}
 	
 	this.onerror_after_onopen = function(evt)
 	{
 		KBEngine.ERROR_MSG('connect error:' + evt.data);
+		KBEngine.app.resetSocket();
 		KBEngine.Event.fire("onDisconnected");
 	}
 	
@@ -2571,6 +2573,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	this.onclose = function()
 	{  
 		KBEngine.INFO_MSG('connect close:' + KBEngine.app.currserver);
+		KBEngine.app.resetSocket();
 		KBEngine.Event.fire("onDisconnected");
 		//if(KBEngine.app.currserver != "loginapp")
 		//	KBEngine.app.reset();
@@ -2581,7 +2584,8 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.socket.send(msg);
 	}
 
-	this.close = function(){  
+	this.close = function() {
+		KBEngine.INFO_MSG('KBEngine::close()');
 		KBEngine.app.socket.close();  
 		KBEngine.app.reset();
 	}
