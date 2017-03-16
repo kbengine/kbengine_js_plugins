@@ -3356,6 +3356,12 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.Event.fire("onLoginBaseappFailed", failedcode);
 	}
 
+	this.Client_onLoginBaseappFailed = function(failedcode)
+	{
+		KBEngine.ERROR_MSG("KBEngineApp::Client_onReloginBaseappFailed: failedcode(" + KBEngine.app.serverErrs[failedcode].name + ")!");
+		KBEngine.Event.fire("onReloginBaseappFailed", failedcode);
+	}
+
 	this.Client_onReloginBaseappSuccessfully = function(stream)
 	{
 		KBEngine.app.entity_uuid = stream.readUint64();
