@@ -3284,6 +3284,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.reloginBaseapp = function()
 	{  
+		if(KBEngine.app.socket != undefined && KBEngine.app.socket != null)
+			return;
+		
 		KBEngine.app.resetSocket();
 		KBEngine.Event.fire("onReloginBaseapp");
 		KBEngine.INFO_MSG("KBEngineApp::reloginBaseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
