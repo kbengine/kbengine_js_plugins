@@ -1470,6 +1470,10 @@ KBEngine.Entity = KBEngine.Class.extend(
 		KBEngine.INFO_MSG(this.className + '::enterSpace: ' + this.id); 
 		this.onEnterSpace();
 		KBEngine.Event.fire("onEnterSpace", this);
+		
+		// 要立即刷新表现层对象的位置
+		KBEngine.Event.fire("set_position", this);
+		KBEngine.Event.fire("set_direction", this);
 	},
 
 	onEnterSpace : function()
