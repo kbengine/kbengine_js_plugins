@@ -3800,13 +3800,14 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var retcode = stream.readUint16();
 		var datas = stream.readBlob();
 		
+		KBEngine.Event.fire("onCreateAccountResult", retcode, datas);
+		
 		if(retcode != 0)
 		{
 			KBEngine.ERROR_MSG("KBEngineApp::Client_onCreateAccountResult: " + KBEngine.app.username + " create is failed! code=" + KBEngine.app.serverErrs[retcode].name + "!");
 			return;
 		}
 
-		KBEngine.Event.fire("onCreateAccountResult", retcode, datas);
 		KBEngine.INFO_MSG("KBEngineApp::Client_onCreateAccountResult: " + KBEngine.app.username + " create is successfully!");
 	}
 
