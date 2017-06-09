@@ -3127,6 +3127,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.createAccount = function(username, password, datas)
 	{  
+		KBEngine.app.reset();
 		KBEngine.app.username = username;
 		KBEngine.app.password = password;
 		KBEngine.app.clientdatas = datas;
@@ -3225,6 +3226,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 	this.reset_password = function(username)
 	{ 
+		KBEngine.app.reset();
 		KBEngine.app.username = username;
 		KBEngine.app.resetpassword_loginapp(true);
 	}
