@@ -2395,6 +2395,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			{
 				var sock = KBEngine.app.socket;
 				
+				sock.onopen = undefined;
+				sock.onerror = undefined;
+				sock.onmessage = undefined;
 				sock.onclose = undefined;
 				KBEngine.app.socket = null;
 				sock.close();
