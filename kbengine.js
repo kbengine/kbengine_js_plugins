@@ -2904,6 +2904,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				var defaultValStr = stream.readString();
 				var utype = KBEngine.datatypes[stream.readUint16()];
 				var setmethod = null;
+				
 				if(Class != undefined)
 				{
 					setmethod = Class.prototype["set_" + name];
@@ -2914,7 +2915,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				var savedata = [properUtype, aliasID, name, defaultValStr, utype, setmethod, properFlags];
 				self_propertys[name] = savedata;
 				
-				if(aliasID >= 0)
+				if(aliasID != -1)
 				{
 					self_propertys[aliasID] = savedata;
 					currModuleDefs["usePropertyDescrAlias"] = true;
@@ -2947,7 +2948,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				var savedata = [methodUtype, aliasID, name, args];
 				self_methods[name] = savedata;
 				
-				if(aliasID >= 0)
+				if(aliasID != -1)
 				{
 					self_methods[aliasID] = savedata;
 					currModuleDefs["useMethodDescrAlias"] = true;
