@@ -909,7 +909,7 @@ KBEngine.mappingDataType = function(writer, argType)
 	KBEngine.datatype2id["DATATYPE"] = 2;
 	KBEngine.datatype2id["CHAR"] = 2;
 	KBEngine.datatype2id["DETAIL_TYPE"] = 2;
-	KBEngine.datatype2id["ENTITYCALL_TYPE"] = 2;
+	KBEngine.datatype2id["ENTITYCALL_CALL_TYPE"] = 2;
 
 	KBEngine.datatype2id["UINT16"] = 3;
 	KBEngine.datatype2id["UNSIGNED SHORT"] = 3;
@@ -1549,7 +1549,7 @@ KBEngine.EntityCall = function()
 		if(this.type == KBEngine.ENTITYCALL_TYPE_CELL)
 			this.bundle.newMessage(KBEngine.messages.Baseapp_onRemoteCallCellMethodFromClient);
 		else
-			this.bundle.newMessage(KBEngine.messages.Base_onRemoteMethodCall);
+			this.bundle.newMessage(KBEngine.messages.Entity_onRemoteMethodCall);
 
 		this.bundle.writeInt32(this.id);
 		
@@ -4401,14 +4401,19 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	
 	this.Client_onStreamDataStarted = function(id, datasize, descr)
 	{
+		KBEngine.Event.fire("onStreamDataStarted", id, datasize, descr);
 	}
 	
 	this.Client_onStreamDataRecv = function(stream)
 	{
+		var id = stream.readUint16();
+		var data = stream.readBlob();
+		KBEngine.Event.fire("onStreamDataRecv", id, data);
 	}
 	
 	this.Client_onStreamDataCompleted = function(id)
 	{
+		KBEngine.Event.fire("onStreamDataCompleted", id);
 	}
 	
 	this.Client_onReqAccountResetPasswordCB = function(failedcode)
