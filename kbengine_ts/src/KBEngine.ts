@@ -4,13 +4,10 @@
  * 缺少测试
  * 缺少类型Vector2,Vector4,暂时修改为Vector3，如果出问题再修改
  */
+/*-----------------------------------------------------------------------------------------
+                                            global
+-----------------------------------------------------------------------------------------*/
 namespace KBEngine {
-    export class Class {
-
-    }
-    /*-----------------------------------------------------------------------------------------
-												global
-    -----------------------------------------------------------------------------------------*/
     export const PACKET_MAX_SIZE = 1500;
     export const PACKET_MAX_SIZE_TCP = 1460;
     export const PACKET_MAX_SIZE_UDP = 1472;
@@ -20,9 +17,11 @@ namespace KBEngine {
 
     export const CLIENT_NO_FLOAT = 0;
     export const KBE_FLT_MAX = 3.402823466e+38;
-    /*-----------------------------------------------------------------------------------------
+}
+/*-----------------------------------------------------------------------------------------
                                                     number64bits
-    -----------------------------------------------------------------------------------------*/
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export class INT64 {
         constructor(lo, hi) {
             this.lo = lo;
@@ -86,9 +85,11 @@ namespace KBEngine {
             return result;
         }
     }
-    /*-----------------------------------------------------------------------------------------
-                                                debug
-    -----------------------------------------------------------------------------------------*/
+}
+/*-----------------------------------------------------------------------------------------
+                                            debug
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export function INFO_MSG(s) {
         console.info(s);
     }
@@ -101,10 +102,11 @@ namespace KBEngine {
     export function WARNING_MSG(s) {
         console.warn(s);
     }
-
-    /*-----------------------------------------------------------------------------------------
-                                                string
-    -----------------------------------------------------------------------------------------*/
+}
+/*-----------------------------------------------------------------------------------------
+                                            string
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export function utf8ArrayToString(array: Array<any>) {
         let out, i, len, c;
         let char2, char3;
@@ -169,10 +171,12 @@ namespace KBEngine {
         }
         return utf8;
     }
+}
 
-    /*-----------------------------------------------------------------------------------------
-                                                event
-    -----------------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------------------
+                                            event
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export class EventInfo {
         constructor(classinst, callbackfn) {
             this.callbackfn = callbackfn;
@@ -190,7 +194,7 @@ namespace KBEngine {
         }
         _events: IEvents = {};
         register(evtName: string, classinst, strCallback: string) {
-            let callbackfn = eval("classinst." + strCallback);
+            let callbackfn = classinst[strCallback];
             if (callbackfn == undefined) {
                 ERROR_MSG('export class Event::fire: not found strCallback(' + classinst + ")!" + strCallback);
                 return;
@@ -205,7 +209,7 @@ namespace KBEngine {
             let info = new EventInfo(classinst, callbackfn);
             evtlst.push(info);
         }
-        deregister(evtName, classinst) {
+        deregister(evtName:string, classinst) {
             for (let itemkey in this._events) {
                 let evtlst = this._events[itemkey];
                 while (true) {
@@ -224,7 +228,7 @@ namespace KBEngine {
                 }
             }
         }
-        fire(evtName, ...args) {
+        fire(evtName:string, ...args:any[]) {
             if (arguments.length < 1) {
                 ERROR_MSG('export class Event::fire: not found eventName!');
                 return;
@@ -236,26 +240,28 @@ namespace KBEngine {
                 return;
             }
 
-            let ars = [];
-            for (let i = 1; i < args.length; i++)
-                ars.push(args[i]);
+            // let ars = [];
+            // for (let i = 0; i < args.length; i++)
+            //     ars.push(args[i]);
 
             for (let i = 0; i < evtlst.length; i++) {
                 let info = evtlst[i];
-                if (ars.length < 1) {
-                    info.callbackfn.apply(info.classinst);
-                }
-                else {
-                    info.callbackfn.apply(info.classinst, ars);
-                }
+                info.callbackfn.apply(info.classinst, args || []);
+                // if (args.length < 1) {
+                //     info.callbackfn.apply(info.classinst);
+                // }
+                // else {
+                //     info.callbackfn.apply(info.classinst, args);
+                // }
             }
         }
     }
     export const Event = new Events();
-
-    /*-----------------------------------------------------------------------------------------
-                                                    memorystream
-    -----------------------------------------------------------------------------------------*/
+}
+/*-----------------------------------------------------------------------------------------
+                                                memorystream
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export class MemoryStream {
         constructor(size_or_buffer) {
             if (size_or_buffer instanceof ArrayBuffer) {
@@ -581,10 +587,11 @@ namespace KBEngine {
             };
         }
     }
-
-    /*-----------------------------------------------------------------------------------------
-                                                    bundle
-    -----------------------------------------------------------------------------------------*/
+}
+/*-----------------------------------------------------------------------------------------
+                                                bundle
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export class Bundle {
         constructor() {
             this.stream = new MemoryStream(PACKET_MAX_SIZE_TCP);
@@ -592,7 +599,7 @@ namespace KBEngine {
         memorystreams: Array<any> = new Array();
         stream: MemoryStream;
         numMessage: number = 0;
-        messageLengthBuffer = null;
+        messageLengthBuffer:Uint8Array = null;
         msgtype = null;
         messageLength: number = 0;
         //---------------------------------------------------------------------------------
@@ -897,13 +904,14 @@ namespace KBEngine {
     }
     export let clientmessages = {};
     export let bufferedCreateEntityMessage = {};
-
-    /*-----------------------------------------------------------------------------------------
-												math
-    -----------------------------------------------------------------------------------------*/
-    export class Vector3 extends Class {
+}
+/*-----------------------------------------------------------------------------------------
+                                            math
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
+    export class Vector3  {
         constructor(x, y, z) {
-            super();
+            
             this.x = x;
             this.y = y;
             this.z = z;
@@ -941,12 +949,17 @@ namespace KBEngine {
 
         return angle;
     }
-    /*-----------------------------------------------------------------------------------------
-												entity
-    -----------------------------------------------------------------------------------------*/
-    export class Entity extends Class {
+}
+/*-----------------------------------------------------------------------------------------
+                                            entity
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
+    export namespace Entities {
+
+    }
+    export class Entity  {
         constructor() {
-            super();
+            
         }
         id: number = 0;
         className: string = "";
@@ -1167,10 +1180,11 @@ namespace KBEngine {
             Event.fire("set_direction", this);
         }
     }
-
-    /*-----------------------------------------------------------------------------------------
-                                                    EntityCall
-    -----------------------------------------------------------------------------------------*/
+}
+/*-----------------------------------------------------------------------------------------
+                                                EntityCall
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export const ENTITYCALL_TYPE_CELL = 0;
     export const ENTITYCALL_TYPE_BASE = 1;
 
@@ -1213,7 +1227,6 @@ namespace KBEngine {
                 this.bundle = null;
         }
     }
-    export const moduledefs = {};
 
     export class DATATYPE_UINT8 {
         bind  () {
@@ -1780,15 +1793,18 @@ namespace KBEngine {
         export const ENTITYCALL = new DATATYPE_ENTITYCALL();
         export const BLOB = new DATATYPE_BLOB();
     };
-
-    /*-----------------------------------------------------------------------------------------
-												KBEngine args
-    -----------------------------------------------------------------------------------------*/
+}
+/*-----------------------------------------------------------------------------------------
+                                            KBEngine args
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
     export class KBEngineArgs {
         ip = '127.0.0.1';
         port = 20013;
         updateHZ = 100;
         serverHeartbeatTick = 15;
+        
+        protocol:string = "ws://";
 
         // Reference: http://www.org/docs/programming/clientsdkprogramming.html, client types
         clientType = 5;
@@ -1796,10 +1812,12 @@ namespace KBEngine {
         // 在Entity初始化时是否触发属性的set_*事件(callPropertysSetMethods)
         isOnInitCallPropertysSetMethods = true;
     }
-
-    /*-----------------------------------------------------------------------------------------
-												KBEngine app
-    -----------------------------------------------------------------------------------------*/
+}
+/*-----------------------------------------------------------------------------------------
+                                            KBEngine app
+-----------------------------------------------------------------------------------------*/
+namespace KBEngine {
+    export const moduledefs = {};
     export class KBEngineApp {
         constructor(args: KBEngineArgs) {
             console.assert(app == null || app == undefined, "Assertion of app not is null");
@@ -1821,9 +1839,9 @@ namespace KBEngine {
 
         serverErrs: { [err: string]: ServerErr } = {};
 
-        // 登录loginapp的地址
-        ip: string;
-        port: number;
+        // // 登录loginapp的地址
+        // ip: string;
+        // port: number;
 
         // 服务端分配的baseapp地址
         baseappIP = '';
@@ -2271,7 +2289,7 @@ namespace KBEngine {
                 let self_cell_methods = currModuleDefs["cell_methods"];
 
                 try {
-                    let Class = eval("" + scriptmodule_name);
+                    var Class = Entities[scriptmodule_name];
                 }
                 catch (e) {
                     let Class = undefined;
@@ -2375,7 +2393,7 @@ namespace KBEngine {
                 };
                 let defmethod
                 try {
-                    defmethod = eval("" + scriptmodule_name);
+                    defmethod = Entities[scriptmodule_name];
                 }
                 catch (e) {
                     ERROR_MSG("KBEngineApp::Client_onImportClientEntityDef: module(" + scriptmodule_name + ") not found!");
@@ -2489,8 +2507,8 @@ namespace KBEngine {
         }
         createAccount_loginapp  (noconnect) {
             if (noconnect) {
-                INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + app.ip + ":" + app.port + "!");
-                app.connect("ws://" + app.ip + ":" + app.port);
+                INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + app.args.ip + ":" + app.args.port + "!");
+                app.connect(app.args.protocol + app.args.ip + ":" + app.args.port);
                 app.socket.onopen = app.onOpenLoginapp_createAccount;
             }
             else {
@@ -2528,8 +2546,8 @@ namespace KBEngine {
         }
         login_loginapp  (noconnect) {
             if (noconnect) {
-                INFO_MSG("KBEngineApp::login_loginapp: start connect to ws://" + app.ip + ":" + app.port + "!");
-                app.connect("ws://" + app.ip + ":" + app.port);
+                INFO_MSG("KBEngineApp::login_loginapp: start connect to ws://" + app.args.ip + ":" + app.args.port + "!");
+                app.connect(app.args.protocol + app.args.ip + ":" + app.args.port);
                 app.socket.onopen = app.onOpenLoginapp_login;
             }
             else {
@@ -2565,8 +2583,8 @@ namespace KBEngine {
         }
         resetpassword_loginapp  (noconnect) {
             if (noconnect) {
-                INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + app.ip + ":" + app.port + "!");
-                app.connect("ws://" + app.ip + ":" + app.port);
+                INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + app.args.ip + ":" + app.args.port + "!");
+                app.connect(app.args.protocol + app.args.ip + ":" + app.args.port);
                 app.socket.onopen = app.onOpenLoginapp_resetpassword;
             }
             else {
@@ -2595,7 +2613,7 @@ namespace KBEngine {
             if (noconnect) {
                 Event.fire("onLoginBaseapp");
                 INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + app.baseappIp + ":" + app.baseappPort + "!");
-                app.connect("ws://" + app.baseappIp + ":" + app.baseappPort);
+                app.connect(app.args.protocol + app.baseappIp + ":" + app.baseappPort);
 
                 if (app.socket != undefined && app.socket != null)
                     app.socket.onopen = app.onOpenBaseapp;
@@ -2615,7 +2633,7 @@ namespace KBEngine {
             app.resetSocket();
             Event.fire("onReloginBaseapp");
             INFO_MSG("KBEngineApp::reloginBaseapp: start connect to ws://" + app.baseappIp + ":" + app.baseappPort + "!");
-            app.connect("ws://" + app.baseappIp + ":" + app.baseappPort);
+            app.connect(app.args.protocol + app.baseappIp + ":" + app.baseappPort);
 
             if (app.socket != undefined && app.socket != null)
                 app.socket.onopen = app.onReOpenBaseapp;
@@ -2684,15 +2702,10 @@ namespace KBEngine {
         }
         entityclass = {};
         getentityclass  (entityType) {
-            let runclass = app.entityclass[entityType];
+            let runclass = Entities[entityType];
             if (runclass == undefined) {
-                runclass = eval("" + entityType);
-                if (runclass == undefined) {
-                    ERROR_MSG("KBEngineApp::getentityclass: entityType(" + entityType + ") is error!");
-                    return runclass;
-                }
-                else
-                    app.entityclass[entityType] = runclass;
+                ERROR_MSG("KBEngineApp::getentityclass: entityType(" + entityType + ") is error!");
+                return runclass;
             }
 
             return runclass;
