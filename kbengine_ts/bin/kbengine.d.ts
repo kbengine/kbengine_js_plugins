@@ -1,9 +1,10 @@
 /**
  * KBEngine的html5客户端扩展ts版
+ * todo  类型匹配未完善
+ * 缺少测试
+ * 缺少类型Vector2,Vector4,暂时修改为Vector3，如果出问题再修改
  */
 declare namespace KBEngine {
-    class Class {
-    }
     const PACKET_MAX_SIZE = 1500;
     const PACKET_MAX_SIZE_TCP = 1460;
     const PACKET_MAX_SIZE_UDP = 1472;
@@ -11,6 +12,8 @@ declare namespace KBEngine {
     const MESSAGE_LENGTH_LENGTH = 2;
     const CLIENT_NO_FLOAT = 0;
     const KBE_FLT_MAX = 3.402823466e+38;
+}
+declare namespace KBEngine {
     class INT64 {
         constructor(lo: any, hi: any);
         lo: number;
@@ -24,12 +27,18 @@ declare namespace KBEngine {
         hi: number;
         toString(): string;
     }
+}
+declare namespace KBEngine {
     function INFO_MSG(s: any): void;
     function DEBUG_MSG(s: any): void;
     function ERROR_MSG(s: any): void;
     function WARNING_MSG(s: any): void;
+}
+declare namespace KBEngine {
     function utf8ArrayToString(array: Array<any>): any;
     function stringToUTF8Bytes(str: string): any[];
+}
+declare namespace KBEngine {
     class EventInfo {
         constructor(classinst: any, callbackfn: any);
         classinst: any;
@@ -42,10 +51,12 @@ declare namespace KBEngine {
         constructor();
         _events: IEvents;
         register(evtName: string, classinst: any, strCallback: string): void;
-        deregister(evtName: any, classinst: any): void;
-        fire(evtName: any, ...args: any[]): void;
+        deregister(evtName: string, classinst: any): void;
+        fire(evtName: string, ...args: any[]): void;
     }
     const Event: Events;
+}
+declare namespace KBEngine {
     class MemoryStream {
         constructor(size_or_buffer: any);
         buffer: ArrayBuffer;
@@ -94,12 +105,14 @@ declare namespace KBEngine {
             constructor();
         }
     }
+}
+declare namespace KBEngine {
     class Bundle {
         constructor();
         memorystreams: Array<any>;
         stream: MemoryStream;
         numMessage: number;
-        messageLengthBuffer: any;
+        messageLengthBuffer: Uint8Array;
         msgtype: any;
         messageLength: number;
         newMessage(msgtype: any): void;
@@ -149,7 +162,9 @@ declare namespace KBEngine {
     }
     let clientmessages: {};
     let bufferedCreateEntityMessage: {};
-    class Vector3 extends Class {
+}
+declare namespace KBEngine {
+    class Vector3 {
         constructor(x: any, y: any, z: any);
         x: number;
         y: number;
@@ -159,7 +174,11 @@ declare namespace KBEngine {
     function clampf(value: any, min_inclusive: any, max_inclusive: any): any;
     function int82angle(angle: any, half: any): number;
     function angle2int8(v: number, half: boolean): number;
-    class Entity extends Class {
+}
+declare namespace KBEngine {
+    module Entities {
+    }
+    class Entity {
         constructor();
         id: number;
         className: string;
@@ -193,6 +212,8 @@ declare namespace KBEngine {
         onUpdateVolatileData(): void;
         set_direction(old: any): void;
     }
+}
+declare namespace KBEngine {
     const ENTITYCALL_TYPE_CELL = 0;
     const ENTITYCALL_TYPE_BASE = 1;
     class EntityCall {
@@ -207,7 +228,6 @@ declare namespace KBEngine {
         newCall(): any;
         sendCall(bundle: any): void;
     }
-    const moduledefs: {};
     class DATATYPE_UINT8 {
         bind(): void;
         createFromStream(stream: any): any;
@@ -368,14 +388,20 @@ declare namespace KBEngine {
         const ENTITYCALL: DATATYPE_ENTITYCALL;
         const BLOB: DATATYPE_BLOB;
     }
+}
+declare namespace KBEngine {
     class KBEngineArgs {
         ip: string;
         port: number;
         updateHZ: number;
         serverHeartbeatTick: number;
+        protocol: string;
         clientType: number;
         isOnInitCallPropertysSetMethods: boolean;
     }
+}
+declare namespace KBEngine {
+    const moduledefs: {};
     class KBEngineApp {
         constructor(args: KBEngineArgs);
         args: KBEngineArgs;
@@ -391,8 +417,6 @@ declare namespace KBEngine {
         serverErrs: {
             [err: string]: ServerErr;
         };
-        ip: string;
-        port: number;
         baseappIP: string;
         baseappPort: number;
         socket: any;
