@@ -176,7 +176,7 @@ declare namespace KBEngine {
     function angle2int8(v: number, half: boolean): number;
 }
 declare namespace KBEngine {
-    module Entities {
+    namespace Entities {
     }
     class Entity {
         constructor();
@@ -198,8 +198,8 @@ declare namespace KBEngine {
         onDestroy(): void;
         onControlled(bIsControlled: any): void;
         isPlayer(): boolean;
-        baseCall(...params: any[]): void;
-        cellCall(...params: any[]): void;
+        baseCall(type: string, ...params: any[]): void;
+        cellCall(type: string, ...params: any[]): void;
         enterWorld(): void;
         onEnterWorld(): void;
         leaveWorld(): void;

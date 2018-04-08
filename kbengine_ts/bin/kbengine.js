@@ -915,36 +915,36 @@ var KBEngine;
         Entity.prototype.isPlayer = function () {
             return this.id == KBEngine.app.entity_id;
         };
-        Entity.prototype.baseCall = function () {
+        Entity.prototype.baseCall = function (type) {
+            // if (params.length < 1) {
+            //     ERROR_MSG('Entity::baseCall: not fount interfaceName!');
+            //     return;
+            // }
             var params = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                params[_i] = arguments[_i];
-            }
-            if (params.length < 1) {
-                KBEngine.ERROR_MSG('Entity::baseCall: not fount interfaceName!');
-                return;
+            for (var _i = 1; _i < arguments.length; _i++) {
+                params[_i - 1] = arguments[_i];
             }
             if (this.base == undefined) {
                 KBEngine.ERROR_MSG('Entity::baseCall: base is None!');
                 return;
             }
-            var method = KBEngine.moduledefs[this.className].base_methods[params[0]];
+            var method = KBEngine.moduledefs[this.className].base_methods[type];
             if (method == undefined) {
-                KBEngine.ERROR_MSG("Entity::baseCall: The server did not find the def_method(" + this.className + "." + params[0] + ")!");
+                KBEngine.ERROR_MSG("Entity::baseCall: The server did not find the def_method(" + this.className + "." + type + ")!");
                 return;
             }
             var methodID = method[0];
             var args = method[3];
-            if (args.length - 1 != args.length) {
-                KBEngine.ERROR_MSG("Entity::baseCall: args(" + (args.length - 1) + "!= " + args.length + ") size is error!");
+            if (params.length != args.length) {
+                KBEngine.ERROR_MSG("Entity::baseCall: args(" + (params.length - 1) + "!= " + args.length + ") size is error!");
                 return;
             }
             this.base.newCall();
             this.base.bundle.writeUint16(methodID);
             try {
-                for (var i = 0; i < args.length; i++) {
-                    if (args[i].isSameType(args[i + 1])) {
-                        args[i].addToStream(this.base.bundle, args[i + 1]);
+                for (var i = 0; i < params.length; i++) {
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.base.bundle, params[i + 1]);
                     }
                     else {
                         throw new Error("Entity::baseCall: arg[" + i + "] is error!");
@@ -959,36 +959,36 @@ var KBEngine;
             }
             this.base.sendCall();
         };
-        Entity.prototype.cellCall = function () {
+        Entity.prototype.cellCall = function (type) {
+            // if (params.length < 1) {
+            //     ERROR_MSG('Entity::cellCall: not fount interfaceName!');
+            //     return;
+            // }
             var params = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                params[_i] = arguments[_i];
-            }
-            if (params.length < 1) {
-                KBEngine.ERROR_MSG('Entity::cellCall: not fount interfaceName!');
-                return;
+            for (var _i = 1; _i < arguments.length; _i++) {
+                params[_i - 1] = arguments[_i];
             }
             if (this.cell == undefined) {
                 KBEngine.ERROR_MSG('Entity::cellCall: cell is None!');
                 return;
             }
-            var method = KBEngine.moduledefs[this.className].cell_methods[params[0]];
+            var method = KBEngine.moduledefs[this.className].cell_methods[type];
             if (method == undefined) {
-                KBEngine.ERROR_MSG("Entity::cellCall: The server did not find the def_method(" + this.className + "." + params[0] + ")!");
+                KBEngine.ERROR_MSG("Entity::cellCall: The server did not find the def_method(" + this.className + "." + type + ")!");
                 return;
             }
             var methodID = method[0];
             var args = method[3];
-            if (args.length - 1 != args.length) {
-                KBEngine.ERROR_MSG("Entity::cellCall: args(" + (args.length - 1) + "!= " + args.length + ") size is error!");
+            if (params.length != args.length) {
+                KBEngine.ERROR_MSG("Entity::cellCall: args(" + (params.length) + "!= " + args.length + ") size is error!");
                 return;
             }
             this.cell.newCall();
             this.cell.bundle.writeUint16(methodID);
             try {
                 for (var i = 0; i < args.length; i++) {
-                    if (args[i].isSameType(args[i + 1])) {
-                        args[i].addToStream(this.cell.bundle, args[i + 1]);
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.cell.bundle, params[i]);
                     }
                     else {
                         throw new Error("Entity::cellCall: arg[" + i + "] is error!");
@@ -2090,7 +2090,7 @@ var KBEngine;
                 var self_base_methods = currModuleDefs["base_methods"];
                 var self_cell_methods = currModuleDefs["cell_methods"];
                 try {
-                    var Class = Entities[scriptmodule_name];
+                    var Class = KBEngine['Entities'][scriptmodule_name];
                 }
                 catch (e) {
                     var Class_1 = undefined;
@@ -2181,7 +2181,7 @@ var KBEngine;
                 ;
                 var defmethod = void 0;
                 try {
-                    defmethod = Entities[scriptmodule_name];
+                    defmethod = KBEngine['Entities'][scriptmodule_name];
                 }
                 catch (e) {
                     KBEngine.ERROR_MSG("KBEngineApp::Client_onImportClientEntityDef: module(" + scriptmodule_name + ") not found!");
@@ -2464,7 +2464,7 @@ var KBEngine;
             KBEngine.Event.fire("onReloginBaseappSuccessfully");
         };
         KBEngineApp.prototype.getentityclass = function (entityType) {
-            var runclass = Entities[entityType];
+            var runclass = KBEngine['Entities'][entityType];
             if (runclass == undefined) {
                 KBEngine.ERROR_MSG("KBEngineApp::getentityclass: entityType(" + entityType + ") is error!");
                 return runclass;

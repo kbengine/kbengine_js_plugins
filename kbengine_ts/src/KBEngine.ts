@@ -1027,29 +1027,29 @@ namespace KBEngine {
         isPlayer() {
             return this.id == app.entity_id;
         }
-        baseCall(...params:any[]) {
-            if (params.length < 1) {
-                ERROR_MSG('Entity::baseCall: not fount interfaceName!');
-                return;
-            }
+        baseCall(type:string,...params:any[]) {
+            // if (params.length < 1) {
+            //     ERROR_MSG('Entity::baseCall: not fount interfaceName!');
+            //     return;
+            // }
 
             if (this.base == undefined) {
                 ERROR_MSG('Entity::baseCall: base is None!');
                 return;
             }
 
-            let method = moduledefs[this.className].base_methods[params[0]];
+            let method = moduledefs[this.className].base_methods[type];
 
             if (method == undefined) {
-                ERROR_MSG("Entity::baseCall: The server did not find the def_method(" + this.className + "." + params[0] + ")!");
+                ERROR_MSG("Entity::baseCall: The server did not find the def_method(" + this.className + "." + type + ")!");
                 return;
             }
 
             let methodID = method[0];
             let args = method[3];
 
-            if (args.length - 1 != args.length) {
-                ERROR_MSG("Entity::baseCall: args(" + (args.length - 1) + "!= " + args.length + ") size is error!");
+            if (params.length  != args.length) {
+                ERROR_MSG("Entity::baseCall: args(" + (params.length - 1) + "!= " + args.length + ") size is error!");
                 return;
             }
 
@@ -1057,9 +1057,9 @@ namespace KBEngine {
             this.base.bundle.writeUint16(methodID);
 
             try {
-                for (let i = 0; i < args.length; i++) {
-                    if (args[i].isSameType(args[i + 1])) {
-                        args[i].addToStream(this.base.bundle, args[i + 1]);
+                for (let i = 0; i < params.length; i++) {
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.base.bundle, params[i]);
                     }
                     else {
                         throw new Error("Entity::baseCall: arg[" + i + "] is error!");
@@ -1075,29 +1075,29 @@ namespace KBEngine {
 
             this.base.sendCall();
         }
-        cellCall(...params) {
-            if (params.length < 1) {
-                ERROR_MSG('Entity::cellCall: not fount interfaceName!');
-                return;
-            }
+        cellCall(type:string,...params:any[]) {
+            // if (params.length < 1) {
+            //     ERROR_MSG('Entity::cellCall: not fount interfaceName!');
+            //     return;
+            // }
 
             if (this.cell == undefined) {
                 ERROR_MSG('Entity::cellCall: cell is None!');
                 return;
             }
 
-            let method = moduledefs[this.className].cell_methods[params[0]];
+            let method = moduledefs[this.className].cell_methods[type];
 
             if (method == undefined) {
-                ERROR_MSG("Entity::cellCall: The server did not find the def_method(" + this.className + "." + params[0] + ")!");
+                ERROR_MSG("Entity::cellCall: The server did not find the def_method(" + this.className + "." + type + ")!");
                 return;
             }
 
             let methodID = method[0];
             let args = method[3];
 
-            if (args.length - 1 != args.length) {
-                ERROR_MSG("Entity::cellCall: args(" + (args.length - 1) + "!= " + args.length + ") size is error!");
+            if (params.length != args.length) {
+                ERROR_MSG("Entity::cellCall: args(" + (params.length ) + "!= " + args.length + ") size is error!");
                 return;
             }
 
@@ -1106,8 +1106,8 @@ namespace KBEngine {
 
             try {
                 for (let i = 0; i < args.length; i++) {
-                    if (args[i].isSameType(args[i + 1])) {
-                        args[i].addToStream(this.cell.bundle, args[i + 1]);
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.cell.bundle, params[i]);
                     }
                     else {
                         throw new Error("Entity::cellCall: arg[" + i + "] is error!");
@@ -2289,7 +2289,7 @@ namespace KBEngine {
                 let self_cell_methods = currModuleDefs["cell_methods"];
 
                 try {
-                    var Class = Entities[scriptmodule_name];
+                    var Class = KBEngine['Entities'][scriptmodule_name];
                 }
                 catch (e) {
                     let Class = undefined;
@@ -2393,7 +2393,7 @@ namespace KBEngine {
                 };
                 let defmethod
                 try {
-                    defmethod = Entities[scriptmodule_name];
+                    defmethod = KBEngine['Entities'][scriptmodule_name];
                 }
                 catch (e) {
                     ERROR_MSG("KBEngineApp::Client_onImportClientEntityDef: module(" + scriptmodule_name + ") not found!");
@@ -2702,7 +2702,7 @@ namespace KBEngine {
         }
         entityclass = {};
         getentityclass  (entityType) {
-            let runclass = Entities[entityType];
+            let runclass = KBEngine['Entities'][entityType];
             if (runclass == undefined) {
                 ERROR_MSG("KBEngineApp::getentityclass: entityType(" + entityType + ") is error!");
                 return runclass;
