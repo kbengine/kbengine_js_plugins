@@ -2883,7 +2883,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			var self_propertys = currModuleDefs["propertys"];
 			var self_methods = currModuleDefs["methods"];
 			var self_base_methods = currModuleDefs["base_methods"];
-			var self_cell_methods= currModuleDefs["cell_methods"];
+			var self_cell_methods = currModuleDefs["cell_methods"];
 			
 			try
 			{
