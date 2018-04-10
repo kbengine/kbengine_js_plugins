@@ -4480,4 +4480,7 @@ KBEngine.destroy = function()
 	KBEngine.app = undefined;
 }
 
-module.exports = KBEngine;
+if(this.hasOwnProperty("module"))
+{
+	module.exports = KBEngine;
+}
