@@ -3611,7 +3611,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
-			entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
 			if(entityMessage == undefined)
 			{
 				KBEngine.ERROR_MSG("KBEngineApp::Client_onEntityEnterWorld: entity(" + eid + ") not found!");
