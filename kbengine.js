@@ -265,7 +265,7 @@ KBEngine.Event = function()
 	
 	this.register = function(evtName, classinst, strCallback)
 	{
-		var callbackfn = eval("classinst." + strCallback);
+		var callbackfn = classinst[strCallback];
 		if(callbackfn == undefined)
 		{
 			KBEngine.ERROR_MSG('KBEngine.Event::fire: not found strCallback(' + classinst  + ")!"+strCallback);  
@@ -1177,7 +1177,7 @@ KBEngine.messages["Baseapp_importClientMessages"] = new KBEngine.Message(207, "i
 KBEngine.messages["Baseapp_importClientEntityDef"] = new KBEngine.Message(208, "importClientEntityDef", 0, 0, new Array(), null);
 KBEngine.messages["onImportClientMessages"] = new KBEngine.Message(518, "onImportClientMessages", -1, -1, new Array(), null);
 
-KBEngine.bufferedCreateEntityMessage = {};
+KBEngine.bufferedCreateEntityMessages = {};
 
 /*-----------------------------------------------------------------------------------------
 												math
@@ -1589,7 +1589,7 @@ KBEngine.DATATYPE_UINT8 = function()
 
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1626,7 +1626,7 @@ KBEngine.DATATYPE_UINT16 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1663,7 +1663,7 @@ KBEngine.DATATYPE_UINT32 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1700,7 +1700,7 @@ KBEngine.DATATYPE_UINT64 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1727,7 +1727,7 @@ KBEngine.DATATYPE_INT8 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1764,7 +1764,7 @@ KBEngine.DATATYPE_INT16 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1801,7 +1801,7 @@ KBEngine.DATATYPE_INT32 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1838,7 +1838,7 @@ KBEngine.DATATYPE_INT64 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseInt(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1865,7 +1865,7 @@ KBEngine.DATATYPE_FLOAT = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseFloat(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1892,7 +1892,7 @@ KBEngine.DATATYPE_DOUBLE = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return parseFloat(v);
 	}
 	
 	this.isSameType = function(v)
@@ -1919,7 +1919,10 @@ KBEngine.DATATYPE_STRING = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		if(typeof(v) == "string")
+			return v;
+		
+		return "";
 	}
 	
 	this.isSameType = function(v)
@@ -1966,7 +1969,7 @@ KBEngine.DATATYPE_VECTOR2 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return new KBEngine.Vector2(0.0, 0.0);
 	}
 	
 	this.isSameType = function(v)
@@ -2020,7 +2023,7 @@ KBEngine.DATATYPE_VECTOR3 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return new KBEngine.Vector3(0.0, 0.0, 0.0);
 	}
 	
 	this.isSameType = function(v)
@@ -2045,12 +2048,14 @@ KBEngine.DATATYPE_VECTOR4 = function()
 		if(KBEngine.CLIENT_NO_FLOAT)
 		{
 			return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), 
-				KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+				KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), 
+				KBEngine.reader.readInt32.call(stream));
 		}
 		else
 		{
 			return new KBEngine.Vector4(KBEngine.reader.readFloat.call(stream), 
-				KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+				KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), 
+				KBEngine.reader.readFloat.call(stream));
 		}
 		
 		return undefined;
@@ -2076,7 +2081,7 @@ KBEngine.DATATYPE_VECTOR4 = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return new KBEngine.Vector4(0.0, 0.0, 0.0, 0.0);
 	}
 	
 	this.isSameType = function(v)
@@ -2106,7 +2111,7 @@ KBEngine.DATATYPE_PYTHON = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return new Uint8Array();
 	}
 	
 	this.isSameType = function(v)
@@ -2161,7 +2166,7 @@ KBEngine.DATATYPE_ENTITYCALL = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return new Uint8Array();
 	}
 	
 	this.isSameType = function(v)
@@ -2191,7 +2196,7 @@ KBEngine.DATATYPE_BLOB = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return new Uint8Array();
 	}
 	
 	this.isSameType = function(v)
@@ -2235,7 +2240,7 @@ KBEngine.DATATYPE_ARRAY = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return [];
 	}
 	
 	this.isSameType = function(v)
@@ -2289,7 +2294,7 @@ KBEngine.DATATYPE_FIXED_DICT = function()
 	
 	this.parseDefaultValStr = function(v)
 	{
-		return eval(v);
+		return {};
 	}
 	
 	this.isSameType = function(v)
@@ -2325,7 +2330,7 @@ KBEngine.datatypes["VECTOR3"]	= new KBEngine.DATATYPE_VECTOR3;
 KBEngine.datatypes["VECTOR4"]	= new KBEngine.DATATYPE_VECTOR4;
 KBEngine.datatypes["PYTHON"]	= new KBEngine.DATATYPE_PYTHON();
 KBEngine.datatypes["UNICODE"]	= new KBEngine.DATATYPE_UNICODE();
-KBEngine.datatypes["ENTITYCALL"]	= new KBEngine.DATATYPE_ENTITYCALL();
+KBEngine.datatypes["ENTITYCALL"]= new KBEngine.DATATYPE_ENTITYCALL();
 KBEngine.datatypes["BLOB"]		= new KBEngine.DATATYPE_BLOB();
 
 /*-----------------------------------------------------------------------------------------
@@ -2433,6 +2438,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.entity_uuid = null;
 		KBEngine.app.entity_id = 0;
 		KBEngine.app.entity_type = "";
+
+		// 这个参数的选择必须与kbengine_defs.xml::cellapp/aliasEntityID的参数保持一致
+		KBEngine.app.useAliasEntityID = true;
 
 		// 当前玩家最后一次同步到服务端的位置与朝向与服务端最后一次同步过来的位置
 		KBEngine.app.entityServerPos = new KBEngine.Vector3(0.0, 0.0, 0.0);
@@ -2882,14 +2890,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			var self_base_methods = currModuleDefs["base_methods"];
 			var self_cell_methods = currModuleDefs["cell_methods"];
 			
-			try
-			{
-				var Class = eval("KBEngine." + scriptmodule_name);
-			}
-			catch(e)
-			{
-				var Class = undefined;
-			}
+			var Class = KBEngine[scriptmodule_name];
 			
 			while(propertysize > 0)
 			{
@@ -3000,16 +3001,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: add(" + scriptmodule_name + "), cell_method(" + name + ").");
 			};
 			
-			var defmethod;
+			var defmethod = KBEngine[scriptmodule_name];
 
-			try
-			{
-				defmethod = eval("KBEngine." + scriptmodule_name);
-			}
-			catch(e)
+			if(defmethod == undefined)
 			{
 				KBEngine.ERROR_MSG("KBEngineApp::Client_onImportClientEntityDef: module(" + scriptmodule_name + ") not found!");
-				defmethod = undefined;
 			}
 			
 			for(var name in currModuleDefs.propertys)
@@ -3388,7 +3384,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var runclass = KBEngine.app.entityclass[entityType];
 		if(runclass == undefined)
 		{
-			runclass = eval("KBEngine." + entityType);
+			runclass = KBEngine[entityType];
 			if(runclass == undefined)
 			{
 				KBEngine.ERROR_MSG("KBEngineApp::getentityclass: entityType(" + entityType + ") is error!");
@@ -3427,11 +3423,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			
 			KBEngine.app.entities[eid] = entity;
 			
-			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
 			if(entityMessage != undefined)
 			{
 				KBEngine.app.Client_onUpdatePropertys(entityMessage);
-				delete KBEngine.bufferedCreateEntityMessage[eid];
+				delete KBEngine.bufferedCreateEntityMessages[eid];
 			}
 				
 			entity.__init__();
@@ -3442,11 +3438,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		}
 		else
 		{
-			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
 			if(entityMessage != undefined)
 			{
 				KBEngine.app.Client_onUpdatePropertys(entityMessage);
-				delete KBEngine.bufferedCreateEntityMessage[eid];
+				delete KBEngine.bufferedCreateEntityMessages[eid];
 			}
 		}
 	}
@@ -3480,7 +3476,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		
 		if(entity == undefined)
 		{
-			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
 			if(entityMessage != undefined)
 			{
 				KBEngine.ERROR_MSG("KBEngineApp::Client_onUpdatePropertys: entity(" + eid + ") not found!");
@@ -3490,7 +3486,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			var stream1 = new KBEngine.MemoryStream(stream.buffer);
 			stream1.wpos = stream.wpos;
 			stream1.rpos = stream.rpos - 4;
-			KBEngine.bufferedCreateEntityMessage[eid] = stream1;
+			KBEngine.bufferedCreateEntityMessages[eid] = stream1;
 			return;
 		}
 		
@@ -3611,7 +3607,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var entity = KBEngine.app.entities[eid];
 		if(entity == undefined)
 		{
-			var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+			var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
 			if(entityMessage == undefined)
 			{
 				KBEngine.ERROR_MSG("KBEngineApp::Client_onEntityEnterWorld: entity(" + eid + ") not found!");
@@ -3634,7 +3630,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			KBEngine.app.entities[eid] = entity;
 			
 			KBEngine.app.Client_onUpdatePropertys(entityMessage);
-			delete KBEngine.bufferedCreateEntityMessage[eid];
+			delete KBEngine.bufferedCreateEntityMessages[eid];
 			
 			entity.isOnGround = isOnGround > 0;
 			entity.__init__();
@@ -4484,3 +4480,4 @@ if(module != undefined)
 {
 	module.exports = KBEngine;
 }
+
