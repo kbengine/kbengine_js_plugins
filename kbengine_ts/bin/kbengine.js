@@ -9,10 +9,19 @@ for (var i in e) e.hasOwnProperty(i) && (t[i] = e[i]);
 r.prototype = e.prototype, t.prototype = new r();
 };
 /**
- * KBEngine的html5客户端扩展ts版
- * todo  类型匹配未完善
- * 缺少测试
- * 缺少类型Vector2,Vector4,暂时修改为Vector3，如果出问题再修改
+ * KBEngine的html5客户端扩展ts版   1.1.5版本
+ * cocos creator 环境下使用方法
+ * 将bin/kbengine.js导入为插件，将bin/kbengine.d.ts放在项目根目录下，即可
+ *
+ * todo 未完成内容
+ * 1、强类型匹配
+ * 2、代码注释
+ *
+ * 注：（下面的是重点）
+ *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
+ *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名
+ *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
+ *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
 /*-----------------------------------------------------------------------------------------
                                             global
@@ -27,6 +36,10 @@ var KBEngine;
     KBEngine.CLIENT_NO_FLOAT = 0;
     KBEngine.KBE_FLT_MAX = 3.402823466e+38;
 })(KBEngine || (KBEngine = {}));
+/**
+ * 加上声明避免cocos creator编辑器报错
+ */
+window['KBEngine'] = KBEngine;
 /*-----------------------------------------------------------------------------------------
                                                     number64bits
 -----------------------------------------------------------------------------------------*/
@@ -95,6 +108,7 @@ var KBEngine;
                                             debug
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
+    /** todo 调试输出模块，这里需要根据使用的引擎不同在这里加入判断条件 */
     function INFO_MSG(s) {
         console.info(s);
     }
@@ -235,7 +249,7 @@ var KBEngine;
             for (var _i = 1; _i < arguments.length; _i++) {
                 args[_i - 1] = arguments[_i];
             }
-            if (arguments.length < 1) {
+            if (!evtName) {
                 KBEngine.ERROR_MSG('export class Event::fire: not found eventName!');
                 return;
             }
@@ -811,6 +825,20 @@ var KBEngine;
                                             math
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
+    var Vector2 = (function () {
+        function Vector2(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+        Vector2.prototype.distance = function (pos) {
+            var x = pos.x - this.x;
+            var y = pos.y - this.y;
+            return Math.sqrt(x * x + y * y);
+        };
+        return Vector2;
+    }());
+    KBEngine.Vector2 = Vector2;
+    __reflect(Vector2.prototype, "KBEngine.Vector2");
     var Vector3 = (function () {
         function Vector3(x, y, z) {
             this.x = x;
@@ -827,6 +855,29 @@ var KBEngine;
     }());
     KBEngine.Vector3 = Vector3;
     __reflect(Vector3.prototype, "KBEngine.Vector3");
+    /**
+     * todo 这个类的第四个参数的没搞清楚，所有如果没有必要，不要用这个东西
+     */
+    var Vector4 = (function () {
+        function Vector4(x, y, z, w) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+        }
+        /**
+         * todo 因为不清楚这个vector4的 w 的含义，所以不确定这个方法的正确性
+         */
+        Vector4.prototype.distance = function (pos) {
+            var x = pos.x - this.x;
+            var y = pos.y - this.y;
+            var z = pos.z - this.z;
+            return Math.sqrt(x * x + y * y + z * z);
+        };
+        return Vector4;
+    }());
+    KBEngine.Vector4 = Vector4;
+    __reflect(Vector4.prototype, "KBEngine.Vector4");
     function clampf(value, min_inclusive, max_inclusive) {
         if (min_inclusive > max_inclusive) {
             var temp = min_inclusive;
@@ -944,7 +995,7 @@ var KBEngine;
             try {
                 for (var i = 0; i < params.length; i++) {
                     if (args[i].isSameType(params[i])) {
-                        args[i].addToStream(this.base.bundle, params[i + 1]);
+                        args[i].addToStream(this.base.bundle, params[i]);
                     }
                     else {
                         throw new Error("Entity::baseCall: arg[" + i + "] is error!");
@@ -1109,7 +1160,7 @@ var KBEngine;
             stream.writeUint8(v);
         };
         DATATYPE_UINT8.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_UINT8.prototype.isSameType = function (v) {
             if (typeof (v) != "number") {
@@ -1136,7 +1187,7 @@ var KBEngine;
             stream.writeUint16(v);
         };
         DATATYPE_UINT16.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_UINT16.prototype.isSameType = function (v) {
             if (typeof (v) != "number") {
@@ -1163,7 +1214,7 @@ var KBEngine;
             stream.writeUint32(v);
         };
         DATATYPE_UINT32.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_UINT32.prototype.isSameType = function (v) {
             if (typeof (v) != "number") {
@@ -1190,7 +1241,7 @@ var KBEngine;
             stream.writeUint64(v);
         };
         DATATYPE_UINT64.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_UINT64.prototype.isSameType = function (v) {
             return v instanceof KBEngine.UINT64;
@@ -1211,7 +1262,7 @@ var KBEngine;
             stream.writeInt8(v);
         };
         DATATYPE_INT8.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_INT8.prototype.isSameType = function (v) {
             if (typeof (v) != "number") {
@@ -1238,7 +1289,7 @@ var KBEngine;
             stream.writeInt16(v);
         };
         DATATYPE_INT16.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_INT16.prototype.isSameType = function (v) {
             if (typeof (v) != "number") {
@@ -1265,7 +1316,7 @@ var KBEngine;
             stream.writeInt32(v);
         };
         DATATYPE_INT32.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_INT32.prototype.isSameType = function (v) {
             if (typeof (v) != "number") {
@@ -1292,7 +1343,7 @@ var KBEngine;
             stream.writeInt64(v);
         };
         DATATYPE_INT64.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseInt(v);
         };
         DATATYPE_INT64.prototype.isSameType = function (v) {
             return v instanceof KBEngine.INT64;
@@ -1313,7 +1364,7 @@ var KBEngine;
             stream.writeFloat(v);
         };
         DATATYPE_FLOAT.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return parseFloat(v);
         };
         DATATYPE_FLOAT.prototype.isSameType = function (v) {
             return typeof (v) == "number";
@@ -1349,7 +1400,9 @@ var KBEngine;
             stream.writeString(v);
         };
         DATATYPE_STRING.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            if (typeof (v) == "string")
+                return v;
+            return "";
         };
         DATATYPE_STRING.prototype.isSameType = function (v) {
             return typeof (v) == "string";
@@ -1365,10 +1418,10 @@ var KBEngine;
         };
         DATATYPE_VECTOR2.prototype.createFromStream = function (stream) {
             if (KBEngine.CLIENT_NO_FLOAT) {
-                return new KBEngine.Vector3(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+                return new KBEngine.Vector2(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
             }
             else {
-                return new KBEngine.Vector3(KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+                return new KBEngine.Vector2(KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
             }
         };
         DATATYPE_VECTOR2.prototype.addToStream = function (stream, v) {
@@ -1382,10 +1435,11 @@ var KBEngine;
             }
         };
         DATATYPE_VECTOR2.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return new KBEngine.Vector2(0.0, 0.0);
+            ;
         };
         DATATYPE_VECTOR2.prototype.isSameType = function (v) {
-            if (!(v instanceof KBEngine.Vector3)) {
+            if (!(v instanceof KBEngine.Vector2)) {
                 return false;
             }
             return true;
@@ -1420,7 +1474,7 @@ var KBEngine;
             }
         };
         DATATYPE_VECTOR3.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return new KBEngine.Vector3(0.0, 0.0, 0.0);
         };
         DATATYPE_VECTOR3.prototype.isSameType = function (v) {
             if (!(v instanceof KBEngine.Vector3)) {
@@ -1439,10 +1493,10 @@ var KBEngine;
         };
         DATATYPE_VECTOR4.prototype.createFromStream = function (stream) {
             if (KBEngine.CLIENT_NO_FLOAT) {
-                return new KBEngine.Vector3(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+                return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readFloat.call(stream));
             }
             else {
-                return new KBEngine.Vector3(KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+                return new KBEngine.Vector4(KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
             }
         };
         DATATYPE_VECTOR4.prototype.addToStream = function (stream, v) {
@@ -1460,10 +1514,10 @@ var KBEngine;
             }
         };
         DATATYPE_VECTOR4.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return new KBEngine.Vector4(0.0, 0.0, 0.0, 0.0);
         };
         DATATYPE_VECTOR4.prototype.isSameType = function (v) {
-            if (!(v instanceof KBEngine.Vector3)) {
+            if (!(v instanceof KBEngine.Vector4)) {
                 return false;
             }
             return true;
@@ -1482,7 +1536,7 @@ var KBEngine;
         DATATYPE_PYTHON.prototype.addToStream = function (stream, v) {
         };
         DATATYPE_PYTHON.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return new Uint8Array(0);
         };
         DATATYPE_PYTHON.prototype.isSameType = function (v) {
             return false;
@@ -1524,7 +1578,8 @@ var KBEngine;
         DATATYPE_ENTITYCALL.prototype.addToStream = function (stream, v) {
         };
         DATATYPE_ENTITYCALL.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return new Uint8Array(0);
+            ;
         };
         DATATYPE_ENTITYCALL.prototype.isSameType = function (v) {
             return false;
@@ -1548,7 +1603,7 @@ var KBEngine;
             stream.writeBlob(v);
         };
         DATATYPE_BLOB.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return new Uint8Array(0);
         };
         DATATYPE_BLOB.prototype.isSameType = function (v) {
             return true;
@@ -1582,7 +1637,7 @@ var KBEngine;
             }
         };
         DATATYPE_ARRAY.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return [];
         };
         DATATYPE_ARRAY.prototype.isSameType = function (v) {
             for (var i = 0; i < v.length; i++) {
@@ -1621,7 +1676,7 @@ var KBEngine;
             }
         };
         DATATYPE_FIXED_DICT.prototype.parseDefaultValStr = function (v) {
-            return eval(v);
+            return {};
         };
         DATATYPE_FIXED_DICT.prototype.isSameType = function (v) {
             for (var itemkey in this.dicttype) {
@@ -1668,6 +1723,7 @@ var KBEngine;
             this.port = 20013;
             this.updateHZ = 100;
             this.serverHeartbeatTick = 15;
+            //
             this.protocol = "ws://";
             // Reference: http://www.org/docs/programming/clientsdkprogramming.html, client types
             this.clientType = 5;
@@ -1686,6 +1742,7 @@ var KBEngine;
     KBEngine.moduledefs = {};
     var KBEngineApp = (function () {
         function KBEngineApp(args) {
+            // console.assert(app == null || app == undefined, "Assertion of app not is null");
             this.username = "testhtml51";
             this.password = "123456";
             this.clientdatas = "";
@@ -1729,7 +1786,6 @@ var KBEngine;
             this.lastTickTime = Date.now();
             this.lastTickCBTime = Date.now();
             this.entityclass = {};
-            console.assert(KBEngine.app == null || KBEngine.app == undefined, "Assertion of app not is null");
             KBEngine.app = this;
             this.args = args;
         }
@@ -1815,9 +1871,10 @@ var KBEngine;
         KBEngineApp.prototype.findEntity = function (entityID) {
             return KBEngine.app.entities[entityID];
         };
-        KBEngineApp.prototype.connect = function (addr) {
-            console.assert(KBEngine.app.socket == null, "Assertion of socket not is null");
+        KBEngineApp.prototype.connect = function (host, port) {
+            // console.assert(app.socket == null, "Assertion of socket not is null");
             try {
+                var addr = KBEngine.app.args.protocol + host + ':' + port;
                 //todo  应该是在这里设置wss
                 KBEngine.app.socket = new WebSocket(addr);
             }
@@ -2284,7 +2341,7 @@ var KBEngine;
         KBEngineApp.prototype.createAccount_loginapp = function (noconnect) {
             if (noconnect) {
                 KBEngine.INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + KBEngine.app.args.ip + ":" + KBEngine.app.args.port + "!");
-                KBEngine.app.connect(KBEngine.app.args.protocol + KBEngine.app.args.ip + ":" + KBEngine.app.args.port);
+                KBEngine.app.connect(KBEngine.app.args.ip, KBEngine.app.args.port);
                 KBEngine.app.socket.onopen = KBEngine.app.onOpenLoginapp_createAccount;
             }
             else {
@@ -2322,7 +2379,7 @@ var KBEngine;
         KBEngineApp.prototype.login_loginapp = function (noconnect) {
             if (noconnect) {
                 KBEngine.INFO_MSG("KBEngineApp::login_loginapp: start connect to ws://" + KBEngine.app.args.ip + ":" + KBEngine.app.args.port + "!");
-                KBEngine.app.connect(KBEngine.app.args.protocol + KBEngine.app.args.ip + ":" + KBEngine.app.args.port);
+                KBEngine.app.connect(KBEngine.app.args.ip, KBEngine.app.args.port);
                 KBEngine.app.socket.onopen = KBEngine.app.onOpenLoginapp_login;
             }
             else {
@@ -2358,7 +2415,7 @@ var KBEngine;
         KBEngineApp.prototype.resetpassword_loginapp = function (noconnect) {
             if (noconnect) {
                 KBEngine.INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + KBEngine.app.args.ip + ":" + KBEngine.app.args.port + "!");
-                KBEngine.app.connect(KBEngine.app.args.protocol + KBEngine.app.args.ip + ":" + KBEngine.app.args.port);
+                KBEngine.app.connect(KBEngine.app.args.ip, KBEngine.app.args.port);
                 KBEngine.app.socket.onopen = KBEngine.app.onOpenLoginapp_resetpassword;
             }
             else {
@@ -2386,7 +2443,7 @@ var KBEngine;
             if (noconnect) {
                 KBEngine.Event.fire("onLoginBaseapp");
                 KBEngine.INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
-                KBEngine.app.connect(KBEngine.app.args.protocol + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
+                KBEngine.app.connect(KBEngine.app.baseappIp, KBEngine.app.baseappPort);
                 if (KBEngine.app.socket != undefined && KBEngine.app.socket != null)
                     KBEngine.app.socket.onopen = KBEngine.app.onOpenBaseapp;
             }
@@ -2404,7 +2461,7 @@ var KBEngine;
             KBEngine.app.resetSocket();
             KBEngine.Event.fire("onReloginBaseapp");
             KBEngine.INFO_MSG("KBEngineApp::reloginBaseapp: start connect to ws://" + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort + "!");
-            KBEngine.app.connect(KBEngine.app.args.protocol + KBEngine.app.baseappIp + ":" + KBEngine.app.baseappPort);
+            KBEngine.app.connect(KBEngine.app.baseappIp, KBEngine.app.baseappPort);
             if (KBEngine.app.socket != undefined && KBEngine.app.socket != null)
                 KBEngine.app.socket.onopen = KBEngine.app.onReOpenBaseapp;
         };

@@ -1,8 +1,16 @@
 /**
- * KBEngine的html5客户端扩展ts版
- * todo  类型匹配未完善
- * 缺少测试
- * 缺少类型Vector2,Vector4,暂时修改为Vector3，如果出问题再修改
+ * KBEngine的html5客户端扩展ts版   1.1.5版本
+ * cocos creator 环境下使用方法
+ * 将bin/kbengine.js导入为插件，将bin/kbengine.d.ts放在项目根目录下，即可
+ *
+ * todo 未完成内容
+ * 1、强类型匹配
+ * 2、代码注释
+ *
+ * 注：（下面的是重点）
+ *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
+ *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名
+ *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
  */
 declare namespace KBEngine {
     const PACKET_MAX_SIZE = 1500;
@@ -29,6 +37,7 @@ declare namespace KBEngine {
     }
 }
 declare namespace KBEngine {
+    /** todo 调试输出模块，这里需要根据使用的引擎不同在这里加入判断条件 */
     function INFO_MSG(s: any): void;
     function DEBUG_MSG(s: any): void;
     function ERROR_MSG(s: any): void;
@@ -164,12 +173,32 @@ declare namespace KBEngine {
     let bufferedCreateEntityMessage: {};
 }
 declare namespace KBEngine {
+    class Vector2 {
+        constructor(x: any, y: any);
+        x: number;
+        y: number;
+        distance(pos: Vector2): number;
+    }
     class Vector3 {
         constructor(x: any, y: any, z: any);
         x: number;
         y: number;
         z: number;
         distance(pos: Vector3): number;
+    }
+    /**
+     * todo 这个类的第四个参数的没搞清楚，所有如果没有必要，不要用这个东西
+     */
+    class Vector4 {
+        constructor(x: any, y: any, z: any, w: any);
+        x: number;
+        y: number;
+        z: number;
+        w: number;
+        /**
+         * todo 因为不清楚这个vector4的 w 的含义，所以不确定这个方法的正确性
+         */
+        distance(pos: Vector4): number;
     }
     function clampf(value: any, min_inclusive: any, max_inclusive: any): any;
     function int82angle(angle: any, half: any): number;
@@ -232,63 +261,63 @@ declare namespace KBEngine {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_UINT16 {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_UINT32 {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_UINT64 {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_INT8 {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_INT16 {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_INT32 {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_INT64 {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_FLOAT {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): number;
         isSameType(v: any): boolean;
     }
     class DATATYPE_DOUBLE extends DATATYPE_FLOAT {
@@ -299,35 +328,35 @@ declare namespace KBEngine {
         bind(): void;
         createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): string;
         isSameType(v: any): boolean;
     }
     class DATATYPE_VECTOR2 {
         bind(): void;
-        createFromStream(stream: any): Vector3;
+        createFromStream(stream: any): Vector2;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): Vector2;
         isSameType(v: any): boolean;
     }
     class DATATYPE_VECTOR3 {
         bind(): void;
         createFromStream(stream: any): Vector3;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): Vector3;
         isSameType(v: any): boolean;
     }
     class DATATYPE_VECTOR4 {
         bind(): void;
-        createFromStream(stream: any): Vector3;
+        createFromStream(stream: any): Vector4;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): Vector4;
         isSameType(v: any): boolean;
     }
     class DATATYPE_PYTHON {
         bind(): void;
         createFromStream(stream: any): void;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): Uint8Array;
         isSameType(v: any): boolean;
     }
     class DATATYPE_UNICODE {
@@ -341,14 +370,14 @@ declare namespace KBEngine {
         bind(): void;
         createFromStream(stream: any): void;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): Uint8Array;
         isSameType(v: any): boolean;
     }
     class DATATYPE_BLOB {
         bind(): void;
         createFromStream(stream: any): Uint8Array;
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): Uint8Array;
         isSameType(v: any): boolean;
     }
     class DATATYPE_ARRAY {
@@ -356,7 +385,7 @@ declare namespace KBEngine {
         bind(): void;
         createFromStream(stream: any): any[];
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): any[];
         isSameType(v: any): boolean;
     }
     class DATATYPE_FIXED_DICT {
@@ -365,7 +394,7 @@ declare namespace KBEngine {
         bind(): void;
         createFromStream(stream: any): {};
         addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): any;
+        parseDefaultValStr(v: any): {};
         isSameType(v: any): boolean;
     }
     module datatypes {
@@ -450,7 +479,7 @@ declare namespace KBEngine {
         hello(): void;
         player(): any;
         findEntity(entityID: any): any;
-        connect(addr: any): void;
+        connect(host: any, port: any): void;
         disconnect(): void;
         onopen(): void;
         onerror_before_onopen(evt: any): void;
