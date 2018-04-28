@@ -9,8 +9,9 @@
  *
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名
+ *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名;将声明提升至全局
  *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
+ *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
 declare namespace KBEngine {
     const PACKET_MAX_SIZE = 1500;
@@ -38,10 +39,10 @@ declare namespace KBEngine {
 }
 declare namespace KBEngine {
     /** todo 调试输出模块，这里需要根据使用的引擎不同在这里加入判断条件 */
-    function INFO_MSG(s: any): void;
-    function DEBUG_MSG(s: any): void;
-    function ERROR_MSG(s: any): void;
-    function WARNING_MSG(s: any): void;
+    function INFO_MSG(...args: any[]): void;
+    function DEBUG_MSG(...args: any[]): void;
+    function ERROR_MSG(...args: any[]): void;
+    function WARNING_MSG(...args: any[]): void;
 }
 declare namespace KBEngine {
     function utf8ArrayToString(array: Array<any>): any;

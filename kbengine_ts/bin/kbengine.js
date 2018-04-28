@@ -19,7 +19,7 @@ r.prototype = e.prototype, t.prototype = new r();
  *
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名
+ *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名;将声明提升至全局
  *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
  *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
@@ -109,20 +109,36 @@ window['KBEngine'] = KBEngine;
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
     /** todo 调试输出模块，这里需要根据使用的引擎不同在这里加入判断条件 */
-    function INFO_MSG(s) {
-        console.info(s);
+    function INFO_MSG() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        console.info.apply(console, args);
     }
     KBEngine.INFO_MSG = INFO_MSG;
-    function DEBUG_MSG(s) {
-        console.debug(s);
+    function DEBUG_MSG() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        console.debug.apply(console, args);
     }
     KBEngine.DEBUG_MSG = DEBUG_MSG;
-    function ERROR_MSG(s) {
-        console.error(s);
+    function ERROR_MSG() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        console.error.apply(console, args);
     }
     KBEngine.ERROR_MSG = ERROR_MSG;
-    function WARNING_MSG(s) {
-        console.warn(s);
+    function WARNING_MSG() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i] = arguments[_i];
+        }
+        console.warn.apply(console, args);
     }
     KBEngine.WARNING_MSG = WARNING_MSG;
 })(KBEngine || (KBEngine = {}));

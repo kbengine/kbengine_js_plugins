@@ -105,17 +105,17 @@ namespace KBEngine {
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
     /** todo 调试输出模块，这里需要根据使用的引擎不同在这里加入判断条件 */
-    export function INFO_MSG(s) {
-        console.info(s);
+    export function INFO_MSG(...args:any[]) {
+        console.info.apply(console,args);
     }
-    export function DEBUG_MSG(s) {
-        console.debug(s);
+    export function DEBUG_MSG(...args:any[]) {
+        console.debug.apply(console,args);
     }
-    export function ERROR_MSG(s) {
-        console.error(s);
+    export function ERROR_MSG(...args:any[]) {
+        console.error.apply(console,args);
     }
-    export function WARNING_MSG(s) {
-        console.warn(s);
+    export function WARNING_MSG(...args:any[]) {
+        console.warn.apply(console,args);
     }
 }
 /*-----------------------------------------------------------------------------------------
