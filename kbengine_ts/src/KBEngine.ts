@@ -9,7 +9,7 @@
  * 
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名;将声明提升至全局
+ *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 KBEngine['Entities'] = KBEngine['Entities'] || {};KBEngine['Entities']['你的实体类名']=你的实体类名;将声明提升至全局
  *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
  *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
@@ -918,7 +918,7 @@ namespace KBEngine {
         export const onImportClientMessages = new Message(518, "onImportClientMessages", -1, -1, new Array(), null);
     }
     export let clientmessages = {};
-    export let bufferedCreateEntityMessage = {};
+    export let bufferedCreateEntityMessages = {};
 }
 /*-----------------------------------------------------------------------------------------
                                             math
@@ -1857,8 +1857,9 @@ namespace KBEngine {
         port = 20013;
         updateHZ = 100;
         serverHeartbeatTick = 15;
-        //
+        //todo    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
         protocol: string = "ws://";
+        forceBasePort:number = 0;
 
         // Reference: http://www.org/docs/programming/clientsdkprogramming.html, client types
         clientType = 5;
@@ -1891,7 +1892,8 @@ namespace KBEngine {
         baseappMessageImported = false;
         serverErrorsDescrImported = false;
         entitydefImported = false;
-
+        // 这个参数的选择必须与kbengine_defs.xml::cellapp/aliasEntityID的参数保持一致
+		useAliasEntityID = true;
         serverErrs: { [err: string]: ServerErr } = {};
 
         // // 登录loginapp的地址
@@ -2789,10 +2791,10 @@ namespace KBEngine {
 
                 app.entities[eid] = entity;
 
-                let entityMessage = bufferedCreateEntityMessage[eid];
+                let entityMessage = bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
                     app.Client_onUpdatePropertys(entityMessage);
-                    delete bufferedCreateEntityMessage[eid];
+                    delete bufferedCreateEntityMessages[eid];
                 }
 
                 entity.__init__();
@@ -2802,10 +2804,10 @@ namespace KBEngine {
                     entity.callPropertysSetMethods();
             }
             else {
-                let entityMessage = bufferedCreateEntityMessage[eid];
+                let entityMessage = bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
                     app.Client_onUpdatePropertys(entityMessage);
-                    delete bufferedCreateEntityMessage[eid];
+                    delete bufferedCreateEntityMessages[eid];
                 }
             }
         }
@@ -2832,7 +2834,7 @@ namespace KBEngine {
             let entity = app.entities[eid];
 
             if (entity == undefined) {
-                let entityMessage = bufferedCreateEntityMessage[eid];
+                let entityMessage = bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
                     ERROR_MSG("KBEngineApp::Client_onUpdatePropertys: entity(" + eid + ") not found!");
                     return;
@@ -2841,7 +2843,7 @@ namespace KBEngine {
                 let stream1 = new MemoryStream(stream.buffer);
                 stream1.wpos = stream.wpos;
                 stream1.rpos = stream.rpos - 4;
-                bufferedCreateEntityMessage[eid] = stream1;
+                bufferedCreateEntityMessages[eid] = stream1;
                 return;
             }
 
@@ -2941,7 +2943,7 @@ namespace KBEngine {
 
             let entity = app.entities[eid];
             if (entity == undefined) {
-                let entityMessage = bufferedCreateEntityMessage[eid];
+                let entityMessage = bufferedCreateEntityMessages[eid];
                 if (entityMessage == undefined) {
                     ERROR_MSG("KBEngineApp::Client_onEntityEnterWorld: entity(" + eid + ") not found!");
                     return;
@@ -2963,7 +2965,7 @@ namespace KBEngine {
                 app.entities[eid] = entity;
 
                 app.Client_onUpdatePropertys(entityMessage);
-                delete bufferedCreateEntityMessage[eid];
+                delete bufferedCreateEntityMessages[eid];
 
                 // entity.isOnGround = isOnGround > 0;
                 entity.isOnGround = isOnGround;
