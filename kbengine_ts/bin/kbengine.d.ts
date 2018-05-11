@@ -1,5 +1,5 @@
 /**
- * KBEngine的html5客户端扩展ts版   1.1.5版本
+ * KBEngine的html5客户端扩展ts版   1.x版本
  * cocos creator 环境下使用方法
  * 将bin/kbengine.js导入为插件，将bin/kbengine.d.ts放在项目根目录下，即可
  *
@@ -9,7 +9,7 @@
  *
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名;将声明提升至全局
+ *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 KBEngine['Entities'] = KBEngine['Entities'] || {};KBEngine['Entities']['你的实体类名']=你的实体类名;将声明提升至全局
  *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
  *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
@@ -171,7 +171,7 @@ declare namespace KBEngine {
         const onImportClientMessages: Message;
     }
     let clientmessages: {};
-    let bufferedCreateEntityMessage: {};
+    let bufferedCreateEntityMessages: {};
 }
 declare namespace KBEngine {
     class Vector2 {
@@ -426,6 +426,7 @@ declare namespace KBEngine {
         updateHZ: number;
         serverHeartbeatTick: number;
         protocol: string;
+        forceBasePort: number;
         clientType: number;
         isOnInitCallPropertysSetMethods: boolean;
     }
@@ -444,6 +445,7 @@ declare namespace KBEngine {
         baseappMessageImported: boolean;
         serverErrorsDescrImported: boolean;
         entitydefImported: boolean;
+        useAliasEntityID: boolean;
         serverErrs: {
             [err: string]: ServerErr;
         };

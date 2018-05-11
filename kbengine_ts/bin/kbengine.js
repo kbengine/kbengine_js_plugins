@@ -9,7 +9,7 @@ for (var i in e) e.hasOwnProperty(i) && (t[i] = e[i]);
 r.prototype = e.prototype, t.prototype = new r();
 };
 /**
- * KBEngine的html5客户端扩展ts版   1.1.5版本
+ * KBEngine的html5客户端扩展ts版   1.x版本
  * cocos creator 环境下使用方法
  * 将bin/kbengine.js导入为插件，将bin/kbengine.d.ts放在项目根目录下，即可
  *
@@ -19,7 +19,7 @@ r.prototype = e.prototype, t.prototype = new r();
  *
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 window['KBEngine'] = window['KBEngine'] || {};window['KBEngine']['你的实体类名']=你的实体类名;将声明提升至全局
+ *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 KBEngine['Entities'] = KBEngine['Entities'] || {};KBEngine['Entities']['你的实体类名']=你的实体类名;将声明提升至全局
  *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
  *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
@@ -835,7 +835,7 @@ window['KBEngine'] = KBEngine;
         messages.onImportClientMessages = new Message(518, "onImportClientMessages", -1, -1, new Array(), null);
     })(messages = KBEngine.messages || (KBEngine.messages = {}));
     KBEngine.clientmessages = {};
-    KBEngine.bufferedCreateEntityMessage = {};
+    KBEngine.bufferedCreateEntityMessages = {};
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                             math
@@ -1739,8 +1739,9 @@ window['KBEngine'] = KBEngine;
             this.port = 20013;
             this.updateHZ = 100;
             this.serverHeartbeatTick = 15;
-            //
+            //todo    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
             this.protocol = "ws://";
+            this.forceBasePort = 0;
             // Reference: http://www.org/docs/programming/clientsdkprogramming.html, client types
             this.clientType = 5;
             // 在Entity初始化时是否触发属性的set_*事件(callPropertysSetMethods)
@@ -1767,6 +1768,8 @@ window['KBEngine'] = KBEngine;
             this.baseappMessageImported = false;
             this.serverErrorsDescrImported = false;
             this.entitydefImported = false;
+            // 这个参数的选择必须与kbengine_defs.xml::cellapp/aliasEntityID的参数保持一致
+            this.useAliasEntityID = true;
             this.serverErrs = {};
             // // 登录loginapp的地址
             // ip: string;
@@ -1782,7 +1785,7 @@ window['KBEngine'] = KBEngine;
             this.serverScriptVersion = "";
             this.serverProtocolMD5 = "";
             this.serverEntityDefMD5 = "";
-            this.clientVersion = "1.1.5";
+            this.clientVersion = "1.1.8";
             this.clientScriptVersion = "0.1.0";
             // player的相关信息
             this.entity_uuid = null;
@@ -1834,8 +1837,8 @@ window['KBEngine'] = KBEngine;
             KBEngine.app.serverScriptVersion = "";
             KBEngine.app.serverProtocolMD5 = "";
             KBEngine.app.serverEntityDefMD5 = "";
-            KBEngine.app.clientVersion = "1.1.5";
-            KBEngine.app.clientScriptVersion = "0.1.0";
+            // app.clientVersion = "1.1.5";
+            // app.clientScriptVersion = "0.1.0";
             // player的相关信息
             KBEngine.app.entity_uuid = null;
             KBEngine.app.entity_id = 0;
@@ -2561,10 +2564,10 @@ window['KBEngine'] = KBEngine;
                 entity_1.base.className = entityType;
                 entity_1.base.type = KBEngine.ENTITYCALL_TYPE_BASE;
                 KBEngine.app.entities[eid] = entity_1;
-                var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+                var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
                     KBEngine.app.Client_onUpdatePropertys(entityMessage);
-                    delete KBEngine.bufferedCreateEntityMessage[eid];
+                    delete KBEngine.bufferedCreateEntityMessages[eid];
                 }
                 entity_1.__init__();
                 entity_1.inited = true;
@@ -2572,10 +2575,10 @@ window['KBEngine'] = KBEngine;
                     entity_1.callPropertysSetMethods();
             }
             else {
-                var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+                var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
                     KBEngine.app.Client_onUpdatePropertys(entityMessage);
-                    delete KBEngine.bufferedCreateEntityMessage[eid];
+                    delete KBEngine.bufferedCreateEntityMessages[eid];
                 }
             }
         };
@@ -2598,7 +2601,7 @@ window['KBEngine'] = KBEngine;
         KBEngineApp.prototype.onUpdatePropertys_ = function (eid, stream) {
             var entity = KBEngine.app.entities[eid];
             if (entity == undefined) {
-                var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+                var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
                     KBEngine.ERROR_MSG("KBEngineApp::Client_onUpdatePropertys: entity(" + eid + ") not found!");
                     return;
@@ -2606,7 +2609,7 @@ window['KBEngine'] = KBEngine;
                 var stream1 = new KBEngine.MemoryStream(stream.buffer);
                 stream1.wpos = stream.wpos;
                 stream1.rpos = stream.rpos - 4;
-                KBEngine.bufferedCreateEntityMessage[eid] = stream1;
+                KBEngine.bufferedCreateEntityMessages[eid] = stream1;
                 return;
             }
             var currModule = KBEngine.moduledefs[entity.className];
@@ -2693,7 +2696,7 @@ window['KBEngine'] = KBEngine;
             KBEngine.INFO_MSG("KBEngineApp::Client_onEntityEnterWorld: " + entityType + "(" + eid + "), spaceID(" + KBEngine.app.spaceID + "), isOnGround(" + isOnGround + ")!");
             var entity = KBEngine.app.entities[eid];
             if (entity == undefined) {
-                var entityMessage = KBEngine.bufferedCreateEntityMessage[eid];
+                var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
                 if (entityMessage == undefined) {
                     KBEngine.ERROR_MSG("KBEngineApp::Client_onEntityEnterWorld: entity(" + eid + ") not found!");
                     return;
@@ -2710,7 +2713,7 @@ window['KBEngine'] = KBEngine;
                 entity_2.cell.type = KBEngine.ENTITYCALL_TYPE_CELL;
                 KBEngine.app.entities[eid] = entity_2;
                 KBEngine.app.Client_onUpdatePropertys(entityMessage);
-                delete KBEngine.bufferedCreateEntityMessage[eid];
+                delete KBEngine.bufferedCreateEntityMessages[eid];
                 // entity.isOnGround = isOnGround > 0;
                 entity_2.isOnGround = isOnGround;
                 entity_2.__init__();

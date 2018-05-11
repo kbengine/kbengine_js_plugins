@@ -1,5 +1,5 @@
 /**
- * KBEngine的html5客户端扩展ts版   1.1.5版本
+ * KBEngine的html5客户端扩展ts版   1.x版本
  * cocos creator 环境下使用方法
  * 将bin/kbengine.js导入为插件，将bin/kbengine.d.ts放在项目根目录下，即可
  * 
@@ -1916,7 +1916,7 @@ namespace KBEngine {
         serverScriptVersion = "";
         serverProtocolMD5 = "";
         serverEntityDefMD5 = "";
-        clientVersion = "1.1.5";
+        clientVersion = "1.1.8";
         clientScriptVersion = "0.1.0";
 
         // player的相关信息
@@ -1975,8 +1975,8 @@ namespace KBEngine {
             app.serverScriptVersion = "";
             app.serverProtocolMD5 = "";
             app.serverEntityDefMD5 = "";
-            app.clientVersion = "1.1.5";
-            app.clientScriptVersion = "0.1.0";
+            // app.clientVersion = "1.1.5";
+            // app.clientScriptVersion = "0.1.0";
 
             // player的相关信息
             app.entity_uuid = null;
