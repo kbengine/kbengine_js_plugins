@@ -4450,6 +4450,17 @@ KBEngine.create = function(kbengineArgs)
 	if(KBEngine.app != undefined)
 		return;
 
+	// 一些平台如小程序上可能没有assert
+	if(console.assert == undefined)
+	{
+		console.assert = function(bRet, s)
+		{
+			if(!(bRet)) {
+				KBEngine.ERROR_MSG(s);
+			}
+		}
+	}
+
 	if(kbengineArgs.constructor != KBEngine.KBEngineArgs)
 	{
 		KBEngine.ERROR_MSG("KBEngine.create(): args(" + kbengineArgs + ") error! not is KBEngine.KBEngineArgs");
