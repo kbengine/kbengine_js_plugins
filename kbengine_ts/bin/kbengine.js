@@ -28,6 +28,8 @@ r.prototype = e.prototype, t.prototype = new r();
 -----------------------------------------------------------------------------------------*/
 var KBEngine;
 (function (KBEngine) {
+    KBEngine.CLIENT_VERSION = '1.1.8';
+    KBEngine.CLIENT_SCRIPT_VERSION = '0.1.0';
     KBEngine.PACKET_MAX_SIZE = 1500;
     KBEngine.PACKET_MAX_SIZE_TCP = 1460;
     KBEngine.PACKET_MAX_SIZE_UDP = 1472;
@@ -1739,7 +1741,7 @@ window['KBEngine'] = KBEngine;
             this.port = 20013;
             this.updateHZ = 100;
             this.serverHeartbeatTick = 15;
-            //todo    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
+            //TODO    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
             this.protocol = "ws://";
             this.forceBasePort = 0;
             // Reference: http://www.org/docs/programming/clientsdkprogramming.html, client types
@@ -1785,8 +1787,8 @@ window['KBEngine'] = KBEngine;
             this.serverScriptVersion = "";
             this.serverProtocolMD5 = "";
             this.serverEntityDefMD5 = "";
-            this.clientVersion = "1.1.8";
-            this.clientScriptVersion = "0.1.0";
+            this.clientVersion = KBEngine.CLIENT_VERSION;
+            this.clientScriptVersion = KBEngine.CLIENT_SCRIPT_VERSION;
             // player的相关信息
             this.entity_uuid = null;
             this.entity_id = 0;

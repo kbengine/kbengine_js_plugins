@@ -14,6 +14,8 @@
  *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
 declare namespace KBEngine {
+    const CLIENT_VERSION = "1.1.8";
+    const CLIENT_SCRIPT_VERSION = "0.1.0";
     const PACKET_MAX_SIZE = 1500;
     const PACKET_MAX_SIZE_TCP = 1460;
     const PACKET_MAX_SIZE_UDP = 1472;

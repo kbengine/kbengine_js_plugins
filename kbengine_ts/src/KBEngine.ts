@@ -18,6 +18,8 @@
                                             global
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
+    export const CLIENT_VERSION ='1.1.8';
+    export const CLIENT_SCRIPT_VERSION ='0.1.0';
     export const PACKET_MAX_SIZE = 1500;
     export const PACKET_MAX_SIZE_TCP = 1460;
     export const PACKET_MAX_SIZE_UDP = 1472;
@@ -1857,7 +1859,8 @@ namespace KBEngine {
         port = 20013;
         updateHZ = 100;
         serverHeartbeatTick = 15;
-        //todo    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
+
+        //TODO    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
         protocol: string = "ws://";
         forceBasePort:number = 0;
 
@@ -1916,8 +1919,8 @@ namespace KBEngine {
         serverScriptVersion = "";
         serverProtocolMD5 = "";
         serverEntityDefMD5 = "";
-        clientVersion = "1.1.8";
-        clientScriptVersion = "0.1.0";
+        clientVersion = CLIENT_VERSION;
+        clientScriptVersion = CLIENT_SCRIPT_VERSION;
 
         // player的相关信息
         entity_uuid = null;
