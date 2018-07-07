@@ -2820,7 +2820,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			</onRemoveAvatar>				
 		*/
 		if(valname.length == 0)
-			length = "Null_" + utype;
+			valname = "Null_" + utype;
 			
 		if(canprint)
 			KBEngine.INFO_MSG("KBEngineApp::Client_onImportClientEntityDef: importAlias(" + name + ":" + valname + ")!");
@@ -3289,7 +3289,11 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	}
 	
 	this.reloginBaseapp = function()
-	{  
+	{
+		var dateObject = new Date();
+		KBEngine.app.lastTickTime = dateObject.getTime();
+		KBEngine.app.lastTickCBTime = dateObject.getTime();
+
 		if(KBEngine.app.socket != undefined && KBEngine.app.socket != null)
 			return;
 		
@@ -4449,6 +4453,17 @@ KBEngine.create = function(kbengineArgs)
 {
 	if(KBEngine.app != undefined)
 		return;
+
+	// 一些平台如小程序上可能没有assert
+	if(console.assert == undefined)
+	{
+		console.assert = function(bRet, s)
+		{
+			if(!(bRet)) {
+				KBEngine.ERROR_MSG(s);
+			}
+		}
+	}
 
 	if(kbengineArgs.constructor != KBEngine.KBEngineArgs)
 	{
