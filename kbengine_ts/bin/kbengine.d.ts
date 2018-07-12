@@ -14,7 +14,7 @@
  *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
 declare namespace KBEngine {
-    const CLIENT_VERSION = "1.1.8";
+    const CLIENT_VERSION = "2.0.0";
     const CLIENT_SCRIPT_VERSION = "0.1.0";
     const PACKET_MAX_SIZE = 1500;
     const PACKET_MAX_SIZE_TCP = 1460;
@@ -248,6 +248,8 @@ declare namespace KBEngine {
 declare namespace KBEngine {
     const ENTITYCALL_TYPE_CELL = 0;
     const ENTITYCALL_TYPE_BASE = 1;
+    class EntityComponent {
+    }
     class EntityCall {
         constructor();
         id: number;
@@ -369,6 +371,13 @@ declare namespace KBEngine {
         parseDefaultValStr(v: any): string;
         isSameType(v: any): boolean;
     }
+    class DATATYPE_ENTITY_COMPONENT {
+        bind(): void;
+        createFromStream(stream: any): void;
+        addToStream(stream: any, v: any): void;
+        parseDefaultValStr(v: any): Uint8Array;
+        isSameType(v: any): boolean;
+    }
     class DATATYPE_ENTITYCALL {
         bind(): void;
         createFromStream(stream: any): void;
@@ -418,6 +427,7 @@ declare namespace KBEngine {
         const PYTHON: DATATYPE_PYTHON;
         const UNICODE: DATATYPE_UNICODE;
         const ENTITYCALL: DATATYPE_ENTITYCALL;
+        const ENTITY_COMPONENT: DATATYPE_ENTITY_COMPONENT;
         const BLOB: DATATYPE_BLOB;
     }
 }
@@ -453,6 +463,7 @@ declare namespace KBEngine {
         };
         baseappIP: string;
         baseappPort: number;
+        baseappUdpPort: number;
         socket: any;
         currserver: string;
         currstate: string;

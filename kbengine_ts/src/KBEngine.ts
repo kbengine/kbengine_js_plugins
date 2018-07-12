@@ -18,8 +18,9 @@
                                             global
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
-    export const CLIENT_VERSION ='1.1.8';
+    export const CLIENT_VERSION ='2.0.0';
     export const CLIENT_SCRIPT_VERSION ='0.1.0';
+
     export const PACKET_MAX_SIZE = 1500;
     export const PACKET_MAX_SIZE_TCP = 1460;
     export const PACKET_MAX_SIZE_UDP = 1472;
@@ -1240,6 +1241,11 @@ namespace KBEngine {
 namespace KBEngine {
     export const ENTITYCALL_TYPE_CELL = 0;
     export const ENTITYCALL_TYPE_BASE = 1;
+    
+    //这个东西好像没有同步给客户端
+    export class EntityComponent{
+
+    }
 
     export class EntityCall {
         constructor() {
@@ -1701,6 +1707,24 @@ namespace KBEngine {
             return typeof (v) == "string";
         }
     }
+    export class DATATYPE_ENTITY_COMPONENT{
+        bind() {
+        }
+
+        createFromStream(stream) {
+        }
+
+        addToStream(stream, v) {
+        }
+
+        parseDefaultValStr(v) {
+            return new Uint8Array(0);;
+        }
+
+        isSameType(v) {
+            return false;
+        }
+    }
     export class DATATYPE_ENTITYCALL {
         bind() {
         }
@@ -1847,6 +1871,7 @@ namespace KBEngine {
         export const PYTHON = new DATATYPE_PYTHON();
         export const UNICODE = new DATATYPE_UNICODE();
         export const ENTITYCALL = new DATATYPE_ENTITYCALL();
+        export const ENTITY_COMPONENT = new DATATYPE_ENTITY_COMPONENT();
         export const BLOB = new DATATYPE_BLOB();
     };
 }
@@ -1906,6 +1931,7 @@ namespace KBEngine {
         // 服务端分配的baseapp地址
         baseappIP = '';
         baseappPort = 0;
+        baseappUdpPort = 0;
 
         socket;
         currserver: string;
@@ -2739,6 +2765,7 @@ namespace KBEngine {
             app.username = accountName;
             app.baseappIp = args.readString();
             app.baseappPort = args.readUint16();
+            app.baseappUdpPort = args.readUint16();
             app.serverdatas = args.readBlob();
 
             INFO_MSG("KBEngineApp::Client_onLoginSuccessfully: accountName(" + accountName + "), addr(" +
