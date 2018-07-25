@@ -2279,7 +2279,7 @@ KBEngine.DATATYPE_PYTHON = function()
 	
 	this.isSameType = function(v)
 	{
-		return true;
+		return false;
 	}
 }
 
