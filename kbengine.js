@@ -2264,10 +2264,12 @@ KBEngine.DATATYPE_PYTHON = function()
 	
 	this.createFromStream = function(stream)
 	{
+		return stream.readBlob();
 	}
 	
 	this.addToStream = function(stream, v)
 	{
+		stream.writeBlob(v);
 	}
 	
 	this.parseDefaultValStr = function(v)
@@ -2277,7 +2279,7 @@ KBEngine.DATATYPE_PYTHON = function()
 	
 	this.isSameType = function(v)
 	{
-		return false;
+		return true;
 	}
 }
 
@@ -2490,6 +2492,8 @@ KBEngine.datatypes["VECTOR2"]	= new KBEngine.DATATYPE_VECTOR2;
 KBEngine.datatypes["VECTOR3"]	= new KBEngine.DATATYPE_VECTOR3;
 KBEngine.datatypes["VECTOR4"]	= new KBEngine.DATATYPE_VECTOR4;
 KBEngine.datatypes["PYTHON"]	= new KBEngine.DATATYPE_PYTHON();
+KBEngine.datatypes["PY_DICT"]   = new KBEngine.DATATYPE_PYTHON();
+KBEngine.datatypes["PY_LIST"]   = new KBEngine.DATATYPE_PYTHON();
 KBEngine.datatypes["UNICODE"]	= new KBEngine.DATATYPE_UNICODE();
 KBEngine.datatypes["ENTITYCALL"]= new KBEngine.DATATYPE_ENTITYCALL();
 KBEngine.datatypes["BLOB"]		= new KBEngine.DATATYPE_BLOB();
