@@ -1182,6 +1182,57 @@ KBEngine.bufferedCreateEntityMessages = {};
 /*-----------------------------------------------------------------------------------------
 												math
 -----------------------------------------------------------------------------------------*/
+KBEngine.Vector2 = KBEngine.Class.extend(
+{
+		ctor:function (x, y) {
+			this.x = x;
+			this.y = y;
+			return true;
+		},
+	
+		distance : function(pos)
+		{
+			var x = pos.x - this.x;
+			var y = pos.y - this.y;
+			return Math.sqrt(x * x + y * y);
+		},
+
+		add : function(vec3)
+		{
+			this.x += vec3.x;
+			this.y += vec3.y;
+			return this;
+		},
+
+		sub: function(vec3)
+		{
+			this.x -= vec3.x;
+			this.y -= vec3.y;
+			return this;
+		},
+
+		mul: function(num)
+		{
+			this.x *= num;
+			this.y *= num;
+			return this;
+		},
+
+		div: function(num)
+		{
+			this.x /= num;
+			this.y /= num;
+			return this;
+		},
+
+		neg: function()
+		{
+			this.x = -this.x;
+			this.y = -this.y;
+			return this;
+		}
+});
+
 KBEngine.Vector3 = KBEngine.Class.extend(
 {
     ctor:function (x, y, z) {
@@ -1197,7 +1248,117 @@ KBEngine.Vector3 = KBEngine.Class.extend(
     	var y = pos.y - this.y;
     	var z = pos.z - this.z;
     	return Math.sqrt(x * x + y * y + z * z);
-    }
+	},
+	
+	//向量加法
+	add : function(vec3)
+	{
+		this.x += vec3.x;
+		this.y += vec3.y;
+		this.z += vec3.z;
+		return this;
+	},
+
+	//向量减法
+	sub: function(vec3)
+	{
+		this.x -= vec3.x;
+		this.y -= vec3.y;
+		this.z -= vec3.z;
+		return this;
+	},
+
+	//向量乘法
+	mul: function(num)
+	{
+		this.x *= num;
+		this.y *= num;
+		this.z *= num;
+		return this;
+	},
+
+	//向量除法
+	div: function(num)
+	{
+		this.x /= num;
+		this.y /= num;
+		this.z /= num;
+		return this;
+	},
+
+	// 向量取反
+	neg: function()
+	{
+		this.x = -this.x;
+		this.y = -this.y;
+		this.z = -this.z;
+		return this;
+	}
+});
+
+KBEngine.Vector4 = KBEngine.Class.extend(
+{
+	ctor:function (x, y, z, w) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		this.w = w;
+		return true;
+	},
+
+	distance : function(pos)
+	{
+		var x = pos.x - this.x;
+		var y = pos.y - this.y;
+		var z = pos.z - this.z;
+		var w = pos.w - this.w;
+		return Math.sqrt(x * x + y * y + z * z + w * w );
+	},
+
+	add : function(vec4)
+	{
+		this.x += vec4.x;
+		this.y += vec4.y;
+		this.z += vec4.z;
+		this.w += vec4.w;
+		return this;
+	},
+
+	sub: function(vec4)
+	{
+		this.x -= vec4.x;
+		this.y -= vec4.y;
+		this.z -= vec4.z;
+		this.w -= vec4.w;
+		return this;
+	},
+
+	mul: function(num)
+	{
+		this.x *= num;
+		this.y *= num;
+		this.z *= num;
+		this.w *= num;
+		return this;
+	},
+
+	div: function(num)
+	{
+		this.x /= num;
+		this.y /= num;
+		this.z /= num;
+		this.w /= num;
+		return this;
+	},
+
+	neg: function()
+	{
+		this.x = -this.x;
+		this.y = -this.y;
+		this.z = -this.z;
+		this.w = -this.w;
+		return this;
+	}
 });
 
 KBEngine.clampf = function (value, min_inclusive, max_inclusive) 
@@ -1942,12 +2103,12 @@ KBEngine.DATATYPE_VECTOR2 = function()
 		if(KBEngine.CLIENT_NO_FLOAT)
 		{
 			return new KBEngine.Vector2(KBEngine.reader.readInt32.call(stream), 
-				KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
+				KBEngine.reader.readInt32.call(stream));
 		}
 		else
 		{
 			return new KBEngine.Vector2(KBEngine.reader.readFloat.call(stream), 
-				KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
+				KBEngine.reader.readFloat.call(stream));
 		}
 		
 		return undefined;
@@ -2103,10 +2264,12 @@ KBEngine.DATATYPE_PYTHON = function()
 	
 	this.createFromStream = function(stream)
 	{
+		return stream.readBlob();
 	}
 	
 	this.addToStream = function(stream, v)
 	{
+		stream.writeBlob(v);
 	}
 	
 	this.parseDefaultValStr = function(v)
@@ -2329,6 +2492,8 @@ KBEngine.datatypes["VECTOR2"]	= new KBEngine.DATATYPE_VECTOR2;
 KBEngine.datatypes["VECTOR3"]	= new KBEngine.DATATYPE_VECTOR3;
 KBEngine.datatypes["VECTOR4"]	= new KBEngine.DATATYPE_VECTOR4;
 KBEngine.datatypes["PYTHON"]	= new KBEngine.DATATYPE_PYTHON();
+KBEngine.datatypes["PY_DICT"]   = new KBEngine.DATATYPE_PYTHON();
+KBEngine.datatypes["PY_LIST"]   = new KBEngine.DATATYPE_PYTHON();
 KBEngine.datatypes["UNICODE"]	= new KBEngine.DATATYPE_UNICODE();
 KBEngine.datatypes["ENTITYCALL"]= new KBEngine.DATATYPE_ENTITYCALL();
 KBEngine.datatypes["BLOB"]		= new KBEngine.DATATYPE_BLOB();
@@ -2431,7 +2596,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.serverScriptVersion = "";
 		KBEngine.app.serverProtocolMD5 = "";
 		KBEngine.app.serverEntityDefMD5 = "";
-		KBEngine.app.clientVersion = "1.1.10";
+		KBEngine.app.clientVersion = "1.1.9";
 		KBEngine.app.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
