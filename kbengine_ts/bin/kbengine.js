@@ -846,6 +846,31 @@ window['KBEngine'] = KBEngine;
             var y = pos.y - this.y;
             return Math.sqrt(x * x + y * y);
         };
+        Vector2.prototype.add = function (vec2) {
+            this.x += vec2.x;
+            this.y += vec2.y;
+            return this;
+        };
+        Vector2.prototype.sub = function (vec2) {
+            this.x -= vec2.x;
+            this.y -= vec2.y;
+            return this;
+        };
+        Vector2.prototype.mul = function (num) {
+            this.x *= num;
+            this.y *= num;
+            return this;
+        };
+        Vector2.prototype.div = function (num) {
+            this.x /= num;
+            this.y /= num;
+            return this;
+        };
+        Vector2.prototype.neg = function () {
+            this.x = -this.x;
+            this.y = -this.y;
+            return this;
+        };
         return Vector2;
     }());
     KBEngine.Vector2 = Vector2;
@@ -861,6 +886,41 @@ window['KBEngine'] = KBEngine;
             var z = pos.z - this.z;
             return Math.sqrt(x * x + y * y + z * z);
         };
+        //向量加法
+        Vector3.prototype.add = function (vec3) {
+            this.x += vec3.x;
+            this.y += vec3.y;
+            this.z += vec3.z;
+            return this;
+        };
+        //向量减法
+        Vector3.prototype.sub = function (vec3) {
+            this.x -= vec3.x;
+            this.y -= vec3.y;
+            this.z -= vec3.z;
+            return this;
+        };
+        //向量乘法
+        Vector3.prototype.mul = function (num) {
+            this.x *= num;
+            this.y *= num;
+            this.z *= num;
+            return this;
+        };
+        //向量除法
+        Vector3.prototype.div = function (num) {
+            this.x /= num;
+            this.y /= num;
+            this.z /= num;
+            return this;
+        };
+        // 向量取反
+        Vector3.prototype.neg = function () {
+            this.x = -this.x;
+            this.y = -this.y;
+            this.z = -this.z;
+            return this;
+        };
         return Vector3;
     }());
     KBEngine.Vector3 = Vector3;
@@ -874,14 +934,47 @@ window['KBEngine'] = KBEngine;
             this.z = z;
             this.w = w;
         }
-        /**
-         * todo 因为不清楚这个vector4的 w 的含义，所以不确定这个方法的正确性
-         */
         Vector4.prototype.distance = function (pos) {
             var x = pos.x - this.x;
             var y = pos.y - this.y;
             var z = pos.z - this.z;
-            return Math.sqrt(x * x + y * y + z * z);
+            var w = pos.w - this.w;
+            return Math.sqrt(x * x + y * y + z * z + w * w);
+        };
+        Vector4.prototype.add = function (vec4) {
+            this.x += vec4.x;
+            this.y += vec4.y;
+            this.z += vec4.z;
+            this.w += vec4.w;
+            return this;
+        };
+        Vector4.prototype.sub = function (vec4) {
+            this.x -= vec4.x;
+            this.y -= vec4.y;
+            this.z -= vec4.z;
+            this.w -= vec4.w;
+            return this;
+        };
+        Vector4.prototype.mul = function (num) {
+            this.x *= num;
+            this.y *= num;
+            this.z *= num;
+            this.w *= num;
+            return this;
+        };
+        Vector4.prototype.div = function (num) {
+            this.x /= num;
+            this.y /= num;
+            this.z /= num;
+            this.w /= num;
+            return this;
+        };
+        Vector4.prototype.neg = function () {
+            this.x = -this.x;
+            this.y = -this.y;
+            this.z = -this.z;
+            this.w = -this.w;
+            return this;
         };
         return Vector4;
     }());
@@ -1493,7 +1586,7 @@ window['KBEngine'] = KBEngine;
         };
         DATATYPE_VECTOR4.prototype.createFromStream = function (stream) {
             if (KBEngine.CLIENT_NO_FLOAT) {
-                return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readFloat.call(stream));
+                return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
             }
             else {
                 return new KBEngine.Vector4(KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
@@ -1531,8 +1624,10 @@ window['KBEngine'] = KBEngine;
         DATATYPE_PYTHON.prototype.bind = function () {
         };
         DATATYPE_PYTHON.prototype.createFromStream = function (stream) {
+            return stream.readBlob();
         };
         DATATYPE_PYTHON.prototype.addToStream = function (stream, v) {
+            stream.writeBlob(v);
         };
         DATATYPE_PYTHON.prototype.parseDefaultValStr = function (v) {
             return new Uint8Array(0);
@@ -1715,10 +1810,12 @@ window['KBEngine'] = KBEngine;
         datatypes.FLOAT = new DATATYPE_FLOAT();
         datatypes.DOUBLE = new DATATYPE_DOUBLE();
         datatypes.STRING = new DATATYPE_STRING();
-        datatypes.VECTOR2 = new DATATYPE_VECTOR2;
-        datatypes.VECTOR3 = new DATATYPE_VECTOR3;
-        datatypes.VECTOR4 = new DATATYPE_VECTOR4;
+        datatypes.VECTOR2 = new DATATYPE_VECTOR2();
+        datatypes.VECTOR3 = new DATATYPE_VECTOR3();
+        datatypes.VECTOR4 = new DATATYPE_VECTOR4();
         datatypes.PYTHON = new DATATYPE_PYTHON();
+        datatypes.PY_DICT = new DATATYPE_PYTHON();
+        datatypes.PY_LIST = new DATATYPE_PYTHON();
         datatypes.UNICODE = new DATATYPE_UNICODE();
         datatypes.ENTITYCALL = new DATATYPE_ENTITYCALL();
         datatypes.ENTITY_COMPONENT = new DATATYPE_ENTITY_COMPONENT();
