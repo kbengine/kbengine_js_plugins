@@ -33,7 +33,7 @@ namespace KBEngine {
 /**
  * 加上声明避免cocos creator编辑器报错
  */
-window['KBEngine']=KBEngine;
+window['KBEngine'] = KBEngine;
 /*-----------------------------------------------------------------------------------------
                                                     number64bits
 -----------------------------------------------------------------------------------------*/
@@ -107,17 +107,17 @@ namespace KBEngine {
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
     /** todo 调试输出模块，这里需要根据使用的引擎不同在这里加入判断条件 */
-    export function INFO_MSG(...args:any[]) {
-        console.info.apply(console,args);
+    export function INFO_MSG(...args: any[]) {
+        console.info.apply(console, args);
     }
-    export function DEBUG_MSG(...args:any[]) {
-        console.debug.apply(console,args);
+    export function DEBUG_MSG(...args: any[]) {
+        console.debug.apply(console, args);
     }
-    export function ERROR_MSG(...args:any[]) {
-        console.error.apply(console,args);
+    export function ERROR_MSG(...args: any[]) {
+        console.error.apply(console, args);
     }
-    export function WARNING_MSG(...args:any[]) {
-        console.warn.apply(console,args);
+    export function WARNING_MSG(...args: any[]) {
+        console.warn.apply(console, args);
     }
 }
 /*-----------------------------------------------------------------------------------------
@@ -927,7 +927,7 @@ namespace KBEngine {
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
     export class Vector2 {
-        constructor(x, y) {
+        constructor(x:number, y:number) {
             this.x = x;
             this.y = y;
         }
@@ -938,9 +938,38 @@ namespace KBEngine {
             let y = pos.y - this.y;
             return Math.sqrt(x * x + y * y);
         }
+        add(vec2: Vector2) {
+            this.x += vec2.x;
+            this.y += vec2.y;
+            return this;
+        }
+
+        sub(vec2: Vector2) {
+            this.x -= vec2.x;
+            this.y -= vec2.y;
+            return this;
+        }
+
+        mul(num: number) {
+            this.x *= num;
+            this.y *= num;
+            return this;
+        }
+
+        div(num: number) {
+            this.x /= num;
+            this.y /= num;
+            return this;
+        }
+
+        neg() {
+            this.x = -this.x;
+            this.y = -this.y;
+            return this;
+        }
     }
     export class Vector3 {
-        constructor(x, y, z) {
+        constructor(x:number, y:number, z:number) {
             this.x = x;
             this.y = y;
             this.z = z;
@@ -954,29 +983,106 @@ namespace KBEngine {
             let z = pos.z - this.z;
             return Math.sqrt(x * x + y * y + z * z);
         }
+
+        //向量加法
+        add(vec3: Vector3) {
+            this.x += vec3.x;
+            this.y += vec3.y;
+            this.z += vec3.z;
+            return this;
+        }
+
+        //向量减法
+        sub(vec3: Vector3) {
+            this.x -= vec3.x;
+            this.y -= vec3.y;
+            this.z -= vec3.z;
+            return this;
+        }
+
+        //向量乘法
+        mul(num: number) {
+            this.x *= num;
+            this.y *= num;
+            this.z *= num;
+            return this;
+        }
+
+        //向量除法
+        div(num: number) {
+            this.x /= num;
+            this.y /= num;
+            this.z /= num;
+            return this;
+        }
+
+        // 向量取反
+        neg() {
+            this.x = -this.x;
+            this.y = -this.y;
+            this.z = -this.z;
+            return this;
+        }
     }
     /**
      * todo 这个类的第四个参数的没搞清楚，所有如果没有必要，不要用这个东西
      */
     export class Vector4 {
-        constructor(x, y, z,w) {
+        constructor(x:number, y:number, z:number, w:number) {
             this.x = x;
             this.y = y;
             this.z = z;
-            this.w =w;
+            this.w = w;
         }
         x: number;
         y: number;
         z: number;
-        w:number;
-        /**
-         * todo 因为不清楚这个vector4的 w 的含义，所以不确定这个方法的正确性
-         */
+        w: number;
         distance(pos: Vector4) {
-            let x = pos.x - this.x;
-            let y = pos.y - this.y;
-            let z = pos.z - this.z;
-            return Math.sqrt(x * x + y * y + z * z);
+            var x = pos.x - this.x;
+            var y = pos.y - this.y;
+            var z = pos.z - this.z;
+            var w = pos.w - this.w;
+            return Math.sqrt(x * x + y * y + z * z + w * w);
+        }
+
+        add(vec4:Vector4) {
+            this.x += vec4.x;
+            this.y += vec4.y;
+            this.z += vec4.z;
+            this.w += vec4.w;
+            return this;
+        }
+
+        sub(vec4:Vector4) {
+            this.x -= vec4.x;
+            this.y -= vec4.y;
+            this.z -= vec4.z;
+            this.w -= vec4.w;
+            return this;
+        }
+
+        mul(num:number) {
+            this.x *= num;
+            this.y *= num;
+            this.z *= num;
+            this.w *= num;
+            return this;
+        }
+        div(num:number) {
+            this.x /= num;
+            this.y /= num;
+            this.z /= num;
+            this.w /= num;
+            return this;
+        }
+
+        neg() {
+            this.x = -this.x;
+            this.y = -this.y;
+            this.z = -this.z;
+            this.w = -this.w;
+            return this;
         }
     }
     export function clampf(value, min_inclusive, max_inclusive) {
@@ -1625,11 +1731,15 @@ namespace KBEngine {
         createFromStream(stream) {
             if (CLIENT_NO_FLOAT) {
                 return new Vector4(reader.readInt32.call(stream),
-                    reader.readInt32.call(stream), reader.readInt32.call(stream),reader.readFloat.call(stream));
+                    reader.readInt32.call(stream),
+                    reader.readInt32.call(stream), 
+                    reader.readInt32.call(stream));
             }
             else {
                 return new Vector4(reader.readFloat.call(stream),
-                    reader.readFloat.call(stream), reader.readFloat.call(stream),reader.readFloat.call(stream));
+                    reader.readFloat.call(stream),
+                    reader.readFloat.call(stream), 
+                    reader.readFloat.call(stream));
             }
         }
 
@@ -1649,7 +1759,7 @@ namespace KBEngine {
         }
 
         parseDefaultValStr(v) {
-            return new KBEngine.Vector4(0.0, 0.0, 0.0,0.0);
+            return new KBEngine.Vector4(0.0, 0.0, 0.0, 0.0);
         }
 
         isSameType(v) {
@@ -1665,9 +1775,11 @@ namespace KBEngine {
         }
 
         createFromStream(stream) {
+            return stream.readBlob();
         }
 
         addToStream(stream, v) {
+            stream.writeBlob(v);
         }
 
         parseDefaultValStr(v) {
@@ -1841,10 +1953,12 @@ namespace KBEngine {
         export const DOUBLE = new DATATYPE_DOUBLE();
 
         export const STRING = new DATATYPE_STRING();
-        export const VECTOR2 = new DATATYPE_VECTOR2;
-        export const VECTOR3 = new DATATYPE_VECTOR3;
-        export const VECTOR4 = new DATATYPE_VECTOR4;
+        export const VECTOR2 = new DATATYPE_VECTOR2();
+        export const VECTOR3 = new DATATYPE_VECTOR3();
+        export const VECTOR4 = new DATATYPE_VECTOR4();
         export const PYTHON = new DATATYPE_PYTHON();
+        export const PY_DICT = new DATATYPE_PYTHON();
+        export const PY_LIST = new DATATYPE_PYTHON();
         export const UNICODE = new DATATYPE_UNICODE();
         export const ENTITYCALL = new DATATYPE_ENTITYCALL();
         export const BLOB = new DATATYPE_BLOB();
@@ -1862,7 +1976,7 @@ namespace KBEngine {
 
         //TODO    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
         protocol: string = "ws://";
-        forceBasePort:number = 0;
+        forceBasePort: number = 0;
 
         // Reference: http://www.org/docs/programming/clientsdkprogramming.html, client types
         clientType = 5;
@@ -1896,7 +2010,7 @@ namespace KBEngine {
         serverErrorsDescrImported = false;
         entitydefImported = false;
         // 这个参数的选择必须与kbengine_defs.xml::cellapp/aliasEntityID的参数保持一致
-		useAliasEntityID = true;
+        useAliasEntityID = true;
         serverErrs: { [err: string]: ServerErr } = {};
 
         // // 登录loginapp的地址

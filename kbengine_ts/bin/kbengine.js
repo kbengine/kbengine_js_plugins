@@ -1,13 +1,13 @@
-var __reflect = (this && this.__reflect) || function (p, c, t) {
-    p.__class__ = c, t ? t.push(c) : t = [c], p.__types__ = p.__types__ ? t.concat(p.__types__) : t;
-};
-var __extends = this && this.__extends || function __extends(t, e) { 
- function r() { 
- this.constructor = t;
-}
-for (var i in e) e.hasOwnProperty(i) && (t[i] = e[i]);
-r.prototype = e.prototype, t.prototype = new r();
-};
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 /**
  * KBEngine的html5客户端扩展ts版   1.x版本
  * cocos creator 环境下使用方法
@@ -46,7 +46,7 @@ window['KBEngine'] = KBEngine;
                                                     number64bits
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var INT64 = (function () {
+    var INT64 = /** @class */ (function () {
         function INT64(lo, hi) {
             this.sign = 1;
             this.lo = lo;
@@ -82,8 +82,7 @@ window['KBEngine'] = KBEngine;
         return INT64;
     }());
     KBEngine.INT64 = INT64;
-    __reflect(INT64.prototype, "KBEngine.INT64");
-    var UINT64 = (function () {
+    var UINT64 = /** @class */ (function () {
         function UINT64(lo, hi) {
             this.lo = lo;
             this.hi = hi;
@@ -104,7 +103,6 @@ window['KBEngine'] = KBEngine;
         return UINT64;
     }());
     KBEngine.UINT64 = UINT64;
-    __reflect(UINT64.prototype, "KBEngine.UINT64");
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                             debug
@@ -199,6 +197,7 @@ window['KBEngine'] = KBEngine;
             else if (charcode < 0xd800 || charcode >= 0xe000) {
                 utf8.push(0xe0 | (charcode >> 12), 0x80 | ((charcode >> 6) & 0x3f), 0x80 | (charcode & 0x3f));
             }
+            // surrogate pair
             else {
                 i++;
                 // UTF-16 encodes 0x10000-0x10FFFF by
@@ -217,7 +216,7 @@ window['KBEngine'] = KBEngine;
                                             event
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var EventInfo = (function () {
+    var EventInfo = /** @class */ (function () {
         function EventInfo(classinst, callbackfn) {
             this.callbackfn = callbackfn;
             this.classinst = classinst;
@@ -225,8 +224,7 @@ window['KBEngine'] = KBEngine;
         return EventInfo;
     }());
     KBEngine.EventInfo = EventInfo;
-    __reflect(EventInfo.prototype, "KBEngine.EventInfo");
-    var Events = (function () {
+    var Events = /** @class */ (function () {
         function Events() {
             this._events = {};
         }
@@ -292,14 +290,13 @@ window['KBEngine'] = KBEngine;
         return Events;
     }());
     KBEngine.Events = Events;
-    __reflect(Events.prototype, "KBEngine.Events");
     KBEngine.Event = new Events();
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                                 memorystream
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var MemoryStream = (function () {
+    var MemoryStream = /** @class */ (function () {
         function MemoryStream(size_or_buffer) {
             this.rpos = 0;
             this.wpos = 0;
@@ -556,9 +553,8 @@ window['KBEngine'] = KBEngine;
         return MemoryStream;
     }());
     KBEngine.MemoryStream = MemoryStream;
-    __reflect(MemoryStream.prototype, "KBEngine.MemoryStream");
     (function (MemoryStream) {
-        var PackFloatXType = (function () {
+        var PackFloatXType = /** @class */ (function () {
             function PackFloatXType() {
                 this._unionData = new ArrayBuffer(4);
                 this.fv = new Float32Array(this._unionData, 0, 1);
@@ -569,14 +565,13 @@ window['KBEngine'] = KBEngine;
             return PackFloatXType;
         }());
         MemoryStream.PackFloatXType = PackFloatXType;
-        __reflect(PackFloatXType.prototype, "KBEngine.MemoryStream.PackFloatXType");
     })(MemoryStream = KBEngine.MemoryStream || (KBEngine.MemoryStream = {}));
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                                 bundle
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var Bundle = (function () {
+    var Bundle = /** @class */ (function () {
         function Bundle() {
             this.memorystreams = new Array();
             this.numMessage = 0;
@@ -691,7 +686,6 @@ window['KBEngine'] = KBEngine;
         return Bundle;
     }());
     KBEngine.Bundle = Bundle;
-    __reflect(Bundle.prototype, "KBEngine.Bundle");
     KBEngine.reader = new KBEngine.MemoryStream(0);
     KBEngine.datatype2id = {};
     function mappingDataType() {
@@ -787,7 +781,7 @@ window['KBEngine'] = KBEngine;
         }
     }
     KBEngine.bindReader = bindReader;
-    var Message = (function () {
+    var Message = /** @class */ (function () {
         function Message(id, name, length, argstype, args, handler) {
             this.id = id;
             this.name = name;
@@ -826,7 +820,6 @@ window['KBEngine'] = KBEngine;
         return Message;
     }());
     KBEngine.Message = Message;
-    __reflect(Message.prototype, "KBEngine.Message");
     var messages;
     (function (messages) {
         messages.loginapp = {};
@@ -843,7 +836,7 @@ window['KBEngine'] = KBEngine;
                                             math
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var Vector2 = (function () {
+    var Vector2 = /** @class */ (function () {
         function Vector2(x, y) {
             this.x = x;
             this.y = y;
@@ -853,11 +846,35 @@ window['KBEngine'] = KBEngine;
             var y = pos.y - this.y;
             return Math.sqrt(x * x + y * y);
         };
+        Vector2.prototype.add = function (vec2) {
+            this.x += vec2.x;
+            this.y += vec2.y;
+            return this;
+        };
+        Vector2.prototype.sub = function (vec2) {
+            this.x -= vec2.x;
+            this.y -= vec2.y;
+            return this;
+        };
+        Vector2.prototype.mul = function (num) {
+            this.x *= num;
+            this.y *= num;
+            return this;
+        };
+        Vector2.prototype.div = function (num) {
+            this.x /= num;
+            this.y /= num;
+            return this;
+        };
+        Vector2.prototype.neg = function () {
+            this.x = -this.x;
+            this.y = -this.y;
+            return this;
+        };
         return Vector2;
     }());
     KBEngine.Vector2 = Vector2;
-    __reflect(Vector2.prototype, "KBEngine.Vector2");
-    var Vector3 = (function () {
+    var Vector3 = /** @class */ (function () {
         function Vector3(x, y, z) {
             this.x = x;
             this.y = y;
@@ -869,33 +886,99 @@ window['KBEngine'] = KBEngine;
             var z = pos.z - this.z;
             return Math.sqrt(x * x + y * y + z * z);
         };
+        //向量加法
+        Vector3.prototype.add = function (vec3) {
+            this.x += vec3.x;
+            this.y += vec3.y;
+            this.z += vec3.z;
+            return this;
+        };
+        //向量减法
+        Vector3.prototype.sub = function (vec3) {
+            this.x -= vec3.x;
+            this.y -= vec3.y;
+            this.z -= vec3.z;
+            return this;
+        };
+        //向量乘法
+        Vector3.prototype.mul = function (num) {
+            this.x *= num;
+            this.y *= num;
+            this.z *= num;
+            return this;
+        };
+        //向量除法
+        Vector3.prototype.div = function (num) {
+            this.x /= num;
+            this.y /= num;
+            this.z /= num;
+            return this;
+        };
+        // 向量取反
+        Vector3.prototype.neg = function () {
+            this.x = -this.x;
+            this.y = -this.y;
+            this.z = -this.z;
+            return this;
+        };
         return Vector3;
     }());
     KBEngine.Vector3 = Vector3;
-    __reflect(Vector3.prototype, "KBEngine.Vector3");
     /**
      * todo 这个类的第四个参数的没搞清楚，所有如果没有必要，不要用这个东西
      */
-    var Vector4 = (function () {
+    var Vector4 = /** @class */ (function () {
         function Vector4(x, y, z, w) {
             this.x = x;
             this.y = y;
             this.z = z;
             this.w = w;
         }
-        /**
-         * todo 因为不清楚这个vector4的 w 的含义，所以不确定这个方法的正确性
-         */
         Vector4.prototype.distance = function (pos) {
             var x = pos.x - this.x;
             var y = pos.y - this.y;
             var z = pos.z - this.z;
-            return Math.sqrt(x * x + y * y + z * z);
+            var w = pos.w - this.w;
+            return Math.sqrt(x * x + y * y + z * z + w * w);
+        };
+        Vector4.prototype.add = function (vec4) {
+            this.x += vec4.x;
+            this.y += vec4.y;
+            this.z += vec4.z;
+            this.w += vec4.w;
+            return this;
+        };
+        Vector4.prototype.sub = function (vec4) {
+            this.x -= vec4.x;
+            this.y -= vec4.y;
+            this.z -= vec4.z;
+            this.w -= vec4.w;
+            return this;
+        };
+        Vector4.prototype.mul = function (num) {
+            this.x *= num;
+            this.y *= num;
+            this.z *= num;
+            this.w *= num;
+            return this;
+        };
+        Vector4.prototype.div = function (num) {
+            this.x /= num;
+            this.y /= num;
+            this.z /= num;
+            this.w /= num;
+            return this;
+        };
+        Vector4.prototype.neg = function () {
+            this.x = -this.x;
+            this.y = -this.y;
+            this.z = -this.z;
+            this.w = -this.w;
+            return this;
         };
         return Vector4;
     }());
     KBEngine.Vector4 = Vector4;
-    __reflect(Vector4.prototype, "KBEngine.Vector4");
     function clampf(value, min_inclusive, max_inclusive) {
         if (min_inclusive > max_inclusive) {
             var temp = min_inclusive;
@@ -926,7 +1009,7 @@ window['KBEngine'] = KBEngine;
                                             entity
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var Entity = (function () {
+    var Entity = /** @class */ (function () {
         function Entity() {
             this.id = 0;
             this.className = "";
@@ -1123,7 +1206,6 @@ window['KBEngine'] = KBEngine;
         return Entity;
     }());
     KBEngine.Entity = Entity;
-    __reflect(Entity.prototype, "KBEngine.Entity");
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                                 EntityCall
@@ -1131,7 +1213,7 @@ window['KBEngine'] = KBEngine;
 (function (KBEngine) {
     KBEngine.ENTITYCALL_TYPE_CELL = 0;
     KBEngine.ENTITYCALL_TYPE_BASE = 1;
-    var EntityCall = (function () {
+    var EntityCall = /** @class */ (function () {
         function EntityCall() {
             this.id = 0;
             this.className = '';
@@ -1165,8 +1247,7 @@ window['KBEngine'] = KBEngine;
         return EntityCall;
     }());
     KBEngine.EntityCall = EntityCall;
-    __reflect(EntityCall.prototype, "KBEngine.EntityCall");
-    var DATATYPE_UINT8 = (function () {
+    var DATATYPE_UINT8 = /** @class */ (function () {
         function DATATYPE_UINT8() {
         }
         DATATYPE_UINT8.prototype.bind = function () {
@@ -1192,8 +1273,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_UINT8;
     }());
     KBEngine.DATATYPE_UINT8 = DATATYPE_UINT8;
-    __reflect(DATATYPE_UINT8.prototype, "KBEngine.DATATYPE_UINT8");
-    var DATATYPE_UINT16 = (function () {
+    var DATATYPE_UINT16 = /** @class */ (function () {
         function DATATYPE_UINT16() {
         }
         DATATYPE_UINT16.prototype.bind = function () {
@@ -1219,8 +1299,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_UINT16;
     }());
     KBEngine.DATATYPE_UINT16 = DATATYPE_UINT16;
-    __reflect(DATATYPE_UINT16.prototype, "KBEngine.DATATYPE_UINT16");
-    var DATATYPE_UINT32 = (function () {
+    var DATATYPE_UINT32 = /** @class */ (function () {
         function DATATYPE_UINT32() {
         }
         DATATYPE_UINT32.prototype.bind = function () {
@@ -1246,8 +1325,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_UINT32;
     }());
     KBEngine.DATATYPE_UINT32 = DATATYPE_UINT32;
-    __reflect(DATATYPE_UINT32.prototype, "KBEngine.DATATYPE_UINT32");
-    var DATATYPE_UINT64 = (function () {
+    var DATATYPE_UINT64 = /** @class */ (function () {
         function DATATYPE_UINT64() {
         }
         DATATYPE_UINT64.prototype.bind = function () {
@@ -1267,8 +1345,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_UINT64;
     }());
     KBEngine.DATATYPE_UINT64 = DATATYPE_UINT64;
-    __reflect(DATATYPE_UINT64.prototype, "KBEngine.DATATYPE_UINT64");
-    var DATATYPE_INT8 = (function () {
+    var DATATYPE_INT8 = /** @class */ (function () {
         function DATATYPE_INT8() {
         }
         DATATYPE_INT8.prototype.bind = function () {
@@ -1294,8 +1371,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_INT8;
     }());
     KBEngine.DATATYPE_INT8 = DATATYPE_INT8;
-    __reflect(DATATYPE_INT8.prototype, "KBEngine.DATATYPE_INT8");
-    var DATATYPE_INT16 = (function () {
+    var DATATYPE_INT16 = /** @class */ (function () {
         function DATATYPE_INT16() {
         }
         DATATYPE_INT16.prototype.bind = function () {
@@ -1321,8 +1397,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_INT16;
     }());
     KBEngine.DATATYPE_INT16 = DATATYPE_INT16;
-    __reflect(DATATYPE_INT16.prototype, "KBEngine.DATATYPE_INT16");
-    var DATATYPE_INT32 = (function () {
+    var DATATYPE_INT32 = /** @class */ (function () {
         function DATATYPE_INT32() {
         }
         DATATYPE_INT32.prototype.bind = function () {
@@ -1348,8 +1423,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_INT32;
     }());
     KBEngine.DATATYPE_INT32 = DATATYPE_INT32;
-    __reflect(DATATYPE_INT32.prototype, "KBEngine.DATATYPE_INT32");
-    var DATATYPE_INT64 = (function () {
+    var DATATYPE_INT64 = /** @class */ (function () {
         function DATATYPE_INT64() {
         }
         DATATYPE_INT64.prototype.bind = function () {
@@ -1369,8 +1443,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_INT64;
     }());
     KBEngine.DATATYPE_INT64 = DATATYPE_INT64;
-    __reflect(DATATYPE_INT64.prototype, "KBEngine.DATATYPE_INT64");
-    var DATATYPE_FLOAT = (function () {
+    var DATATYPE_FLOAT = /** @class */ (function () {
         function DATATYPE_FLOAT() {
         }
         DATATYPE_FLOAT.prototype.bind = function () {
@@ -1390,8 +1463,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_FLOAT;
     }());
     KBEngine.DATATYPE_FLOAT = DATATYPE_FLOAT;
-    __reflect(DATATYPE_FLOAT.prototype, "KBEngine.DATATYPE_FLOAT");
-    var DATATYPE_DOUBLE = (function (_super) {
+    var DATATYPE_DOUBLE = /** @class */ (function (_super) {
         __extends(DATATYPE_DOUBLE, _super);
         function DATATYPE_DOUBLE() {
             return _super !== null && _super.apply(this, arguments) || this;
@@ -1405,8 +1477,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_DOUBLE;
     }(DATATYPE_FLOAT));
     KBEngine.DATATYPE_DOUBLE = DATATYPE_DOUBLE;
-    __reflect(DATATYPE_DOUBLE.prototype, "KBEngine.DATATYPE_DOUBLE");
-    var DATATYPE_STRING = (function () {
+    var DATATYPE_STRING = /** @class */ (function () {
         function DATATYPE_STRING() {
         }
         DATATYPE_STRING.prototype.bind = function () {
@@ -1428,8 +1499,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_STRING;
     }());
     KBEngine.DATATYPE_STRING = DATATYPE_STRING;
-    __reflect(DATATYPE_STRING.prototype, "KBEngine.DATATYPE_STRING");
-    var DATATYPE_VECTOR2 = (function () {
+    var DATATYPE_VECTOR2 = /** @class */ (function () {
         function DATATYPE_VECTOR2() {
         }
         DATATYPE_VECTOR2.prototype.bind = function () {
@@ -1465,8 +1535,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_VECTOR2;
     }());
     KBEngine.DATATYPE_VECTOR2 = DATATYPE_VECTOR2;
-    __reflect(DATATYPE_VECTOR2.prototype, "KBEngine.DATATYPE_VECTOR2");
-    var DATATYPE_VECTOR3 = (function () {
+    var DATATYPE_VECTOR3 = /** @class */ (function () {
         function DATATYPE_VECTOR3() {
         }
         DATATYPE_VECTOR3.prototype.bind = function () {
@@ -1503,15 +1572,14 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_VECTOR3;
     }());
     KBEngine.DATATYPE_VECTOR3 = DATATYPE_VECTOR3;
-    __reflect(DATATYPE_VECTOR3.prototype, "KBEngine.DATATYPE_VECTOR3");
-    var DATATYPE_VECTOR4 = (function () {
+    var DATATYPE_VECTOR4 = /** @class */ (function () {
         function DATATYPE_VECTOR4() {
         }
         DATATYPE_VECTOR4.prototype.bind = function () {
         };
         DATATYPE_VECTOR4.prototype.createFromStream = function (stream) {
             if (KBEngine.CLIENT_NO_FLOAT) {
-                return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readFloat.call(stream));
+                return new KBEngine.Vector4(KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream), KBEngine.reader.readInt32.call(stream));
             }
             else {
                 return new KBEngine.Vector4(KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream), KBEngine.reader.readFloat.call(stream));
@@ -1543,15 +1611,16 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_VECTOR4;
     }());
     KBEngine.DATATYPE_VECTOR4 = DATATYPE_VECTOR4;
-    __reflect(DATATYPE_VECTOR4.prototype, "KBEngine.DATATYPE_VECTOR4");
-    var DATATYPE_PYTHON = (function () {
+    var DATATYPE_PYTHON = /** @class */ (function () {
         function DATATYPE_PYTHON() {
         }
         DATATYPE_PYTHON.prototype.bind = function () {
         };
         DATATYPE_PYTHON.prototype.createFromStream = function (stream) {
+            return stream.readBlob();
         };
         DATATYPE_PYTHON.prototype.addToStream = function (stream, v) {
+            stream.writeBlob(v);
         };
         DATATYPE_PYTHON.prototype.parseDefaultValStr = function (v) {
             return new Uint8Array(0);
@@ -1562,8 +1631,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_PYTHON;
     }());
     KBEngine.DATATYPE_PYTHON = DATATYPE_PYTHON;
-    __reflect(DATATYPE_PYTHON.prototype, "KBEngine.DATATYPE_PYTHON");
-    var DATATYPE_UNICODE = (function () {
+    var DATATYPE_UNICODE = /** @class */ (function () {
         function DATATYPE_UNICODE() {
         }
         DATATYPE_UNICODE.prototype.bind = function () {
@@ -1585,8 +1653,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_UNICODE;
     }());
     KBEngine.DATATYPE_UNICODE = DATATYPE_UNICODE;
-    __reflect(DATATYPE_UNICODE.prototype, "KBEngine.DATATYPE_UNICODE");
-    var DATATYPE_ENTITYCALL = (function () {
+    var DATATYPE_ENTITYCALL = /** @class */ (function () {
         function DATATYPE_ENTITYCALL() {
         }
         DATATYPE_ENTITYCALL.prototype.bind = function () {
@@ -1605,8 +1672,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_ENTITYCALL;
     }());
     KBEngine.DATATYPE_ENTITYCALL = DATATYPE_ENTITYCALL;
-    __reflect(DATATYPE_ENTITYCALL.prototype, "KBEngine.DATATYPE_ENTITYCALL");
-    var DATATYPE_BLOB = (function () {
+    var DATATYPE_BLOB = /** @class */ (function () {
         function DATATYPE_BLOB() {
         }
         DATATYPE_BLOB.prototype.bind = function () {
@@ -1629,8 +1695,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_BLOB;
     }());
     KBEngine.DATATYPE_BLOB = DATATYPE_BLOB;
-    __reflect(DATATYPE_BLOB.prototype, "KBEngine.DATATYPE_BLOB");
-    var DATATYPE_ARRAY = (function () {
+    var DATATYPE_ARRAY = /** @class */ (function () {
         function DATATYPE_ARRAY() {
             this.type = null;
         }
@@ -1668,8 +1733,7 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_ARRAY;
     }());
     KBEngine.DATATYPE_ARRAY = DATATYPE_ARRAY;
-    __reflect(DATATYPE_ARRAY.prototype, "KBEngine.DATATYPE_ARRAY");
-    var DATATYPE_FIXED_DICT = (function () {
+    var DATATYPE_FIXED_DICT = /** @class */ (function () {
         function DATATYPE_FIXED_DICT() {
             this.dicttype = {};
             this.implementedBy = null;
@@ -1707,7 +1771,6 @@ window['KBEngine'] = KBEngine;
         return DATATYPE_FIXED_DICT;
     }());
     KBEngine.DATATYPE_FIXED_DICT = DATATYPE_FIXED_DICT;
-    __reflect(DATATYPE_FIXED_DICT.prototype, "KBEngine.DATATYPE_FIXED_DICT");
     var datatypes;
     (function (datatypes) {
         datatypes.UINT8 = new DATATYPE_UINT8();
@@ -1721,10 +1784,12 @@ window['KBEngine'] = KBEngine;
         datatypes.FLOAT = new DATATYPE_FLOAT();
         datatypes.DOUBLE = new DATATYPE_DOUBLE();
         datatypes.STRING = new DATATYPE_STRING();
-        datatypes.VECTOR2 = new DATATYPE_VECTOR2;
-        datatypes.VECTOR3 = new DATATYPE_VECTOR3;
-        datatypes.VECTOR4 = new DATATYPE_VECTOR4;
+        datatypes.VECTOR2 = new DATATYPE_VECTOR2();
+        datatypes.VECTOR3 = new DATATYPE_VECTOR3();
+        datatypes.VECTOR4 = new DATATYPE_VECTOR4();
         datatypes.PYTHON = new DATATYPE_PYTHON();
+        datatypes.PY_DICT = new DATATYPE_PYTHON();
+        datatypes.PY_LIST = new DATATYPE_PYTHON();
         datatypes.UNICODE = new DATATYPE_UNICODE();
         datatypes.ENTITYCALL = new DATATYPE_ENTITYCALL();
         datatypes.BLOB = new DATATYPE_BLOB();
@@ -1735,7 +1800,7 @@ window['KBEngine'] = KBEngine;
                                             KBEngine args
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var KBEngineArgs = (function () {
+    var KBEngineArgs = /** @class */ (function () {
         function KBEngineArgs() {
             this.ip = '127.0.0.1';
             this.port = 20013;
@@ -1752,14 +1817,13 @@ window['KBEngine'] = KBEngine;
         return KBEngineArgs;
     }());
     KBEngine.KBEngineArgs = KBEngineArgs;
-    __reflect(KBEngineArgs.prototype, "KBEngine.KBEngineArgs");
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                             KBEngine app
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
     KBEngine.moduledefs = {};
-    var KBEngineApp = (function () {
+    var KBEngineApp = /** @class */ (function () {
         function KBEngineApp(args) {
             // console.assert(app == null || app == undefined, "Assertion of app not is null");
             this.username = "testhtml51";
@@ -3268,9 +3332,8 @@ window['KBEngine'] = KBEngine;
         return KBEngineApp;
     }());
     KBEngine.KBEngineApp = KBEngineApp;
-    __reflect(KBEngineApp.prototype, "KBEngine.KBEngineApp");
     // 描述服务端返回的错误信息
-    var ServerErr = (function () {
+    var ServerErr = /** @class */ (function () {
         function ServerErr() {
             this.name = "";
             this.descr = "";
@@ -3279,7 +3342,6 @@ window['KBEngine'] = KBEngine;
         return ServerErr;
     }());
     KBEngine.ServerErr = ServerErr;
-    __reflect(ServerErr.prototype, "KBEngine.ServerErr");
     var idInterval;
     function create(args) {
         if (KBEngine.app != undefined)

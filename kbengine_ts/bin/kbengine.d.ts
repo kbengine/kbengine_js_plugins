@@ -177,31 +177,43 @@ declare namespace KBEngine {
 }
 declare namespace KBEngine {
     class Vector2 {
-        constructor(x: any, y: any);
+        constructor(x: number, y: number);
         x: number;
         y: number;
         distance(pos: Vector2): number;
+        add(vec2: Vector2): this;
+        sub(vec2: Vector2): this;
+        mul(num: number): this;
+        div(num: number): this;
+        neg(): this;
     }
     class Vector3 {
-        constructor(x: any, y: any, z: any);
+        constructor(x: number, y: number, z: number);
         x: number;
         y: number;
         z: number;
         distance(pos: Vector3): number;
+        add(vec3: Vector3): this;
+        sub(vec3: Vector3): this;
+        mul(num: number): this;
+        div(num: number): this;
+        neg(): this;
     }
     /**
      * todo 这个类的第四个参数的没搞清楚，所有如果没有必要，不要用这个东西
      */
     class Vector4 {
-        constructor(x: any, y: any, z: any, w: any);
+        constructor(x: number, y: number, z: number, w: number);
         x: number;
         y: number;
         z: number;
         w: number;
-        /**
-         * todo 因为不清楚这个vector4的 w 的含义，所以不确定这个方法的正确性
-         */
         distance(pos: Vector4): number;
+        add(vec4: Vector4): this;
+        sub(vec4: Vector4): this;
+        mul(num: number): this;
+        div(num: number): this;
+        neg(): this;
     }
     function clampf(value: any, min_inclusive: any, max_inclusive: any): any;
     function int82angle(angle: any, half: any): number;
@@ -357,7 +369,7 @@ declare namespace KBEngine {
     }
     class DATATYPE_PYTHON {
         bind(): void;
-        createFromStream(stream: any): void;
+        createFromStream(stream: any): any;
         addToStream(stream: any, v: any): void;
         parseDefaultValStr(v: any): Uint8Array;
         isSameType(v: any): boolean;
@@ -416,6 +428,8 @@ declare namespace KBEngine {
         const VECTOR3: DATATYPE_VECTOR3;
         const VECTOR4: DATATYPE_VECTOR4;
         const PYTHON: DATATYPE_PYTHON;
+        const PY_DICT: DATATYPE_PYTHON;
+        const PY_LIST: DATATYPE_PYTHON;
         const UNICODE: DATATYPE_UNICODE;
         const ENTITYCALL: DATATYPE_ENTITYCALL;
         const BLOB: DATATYPE_BLOB;
