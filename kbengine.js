@@ -312,7 +312,7 @@ KBEngine.Event = function()
 	{
 		if(arguments.length < 1)
 		{
-			KBEngine.ERROR_MSG('KBEngine.Event::fire: not found eventName!');  
+			//KBEngine.ERROR_MSG('KBEngine.Event::fire: not found eventName!');  
 			return;
 		}
 
@@ -2520,8 +2520,6 @@ KBEngine.datatypes["VECTOR2"]	= new KBEngine.DATATYPE_VECTOR2;
 KBEngine.datatypes["VECTOR3"]	= new KBEngine.DATATYPE_VECTOR3;
 KBEngine.datatypes["VECTOR4"]	= new KBEngine.DATATYPE_VECTOR4;
 KBEngine.datatypes["PYTHON"]	= new KBEngine.DATATYPE_PYTHON();
-KBEngine.datatypes["PY_DICT"]   = new KBEngine.DATATYPE_PYTHON();
-KBEngine.datatypes["PY_LIST"]   = new KBEngine.DATATYPE_PYTHON();
 KBEngine.datatypes["UNICODE"]	= new KBEngine.DATATYPE_UNICODE();
 KBEngine.datatypes["ENTITYCALL"]= new KBEngine.DATATYPE_ENTITYCALL();
 KBEngine.datatypes["BLOB"]		= new KBEngine.DATATYPE_BLOB();
@@ -2536,7 +2534,7 @@ KBEngine.KBEngineArgs = function()
 	this.updateHZ = 100;
 	this.serverHeartbeatTick = 15;
 
-	// Reference: http://www.kbengine.org/docs/programming/clientsdkprogramming.html, client types
+	// Reference: http://kbengine.github.io/docs/programming/clientsdkprogramming.html, client types
 	this.clientType = 5;
 
 	// 在Entity初始化时是否触发属性的set_*事件(callPropertysSetMethods)
@@ -2630,7 +2628,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.serverScriptVersion = "";
 		KBEngine.app.serverProtocolMD5 = "";
 		KBEngine.app.serverEntityDefMD5 = "";
-		KBEngine.app.clientVersion = "1.2.6";
+		KBEngine.app.clientVersion = "1.2.7";
 		KBEngine.app.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -2669,6 +2667,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		KBEngine.Event.register("createAccount", KBEngine.app, "createAccount");
 		KBEngine.Event.register("login", KBEngine.app, "login");
+		KBEngine.Event.register("logout", KBEngine.app, "logout");
 		KBEngine.Event.register("reloginBaseapp", KBEngine.app, "reloginBaseapp");
 		KBEngine.Event.register("bindAccountEmail", KBEngine.app, "bindAccountEmail");
 		KBEngine.Event.register("newPassword", KBEngine.app, "newPassword");
@@ -2676,9 +2675,12 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 	this.uninstallEvents = function()
 	{
-		KBEngine.Event.deregister("reloginBaseapp", KBEngine.app);
-		KBEngine.Event.deregister("login", KBEngine.app);
 		KBEngine.Event.deregister("createAccount", KBEngine.app);
+		KBEngine.Event.deregister("login", KBEngine.app);
+		KBEngine.Event.deregister("logout", KBEngine.app);
+		KBEngine.Event.deregister("reloginBaseapp", KBEngine.app);
+		KBEngine.Event.deregister("bindAccountEmail", KBEngine.app);
+		KBEngine.Event.deregister("newPassword", KBEngine.app);
 	}
 	
 	this.hello = function()
@@ -2820,7 +2822,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			return;
 
 		var dateObject = new Date();
-		if((dateObject.getTime() - KBEngine.app.lastTickTime) / 1000 > KBEngine.app.args.serverHeartbeatTick)
+		if((dateObject.getTime() - KBEngine.app.lastTickTime) / 1000 > (KBEngine.app.args.serverHeartbeatTick / 2))
 		{
 			// 如果心跳回调接收时间小于心跳发送时间，说明没有收到回调
 			// 此时应该通知客户端掉线了
@@ -3386,6 +3388,15 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.clientdatas = datas;
 		
 		KBEngine.app.login_loginapp(true);
+	}
+	
+	this.logout = function()
+	{
+		var bundle = new KBEngine.Bundle();
+		bundle.newMessage(KBEngine.messages.Baseapp_logoutBaseapp);
+		bundle.writeUint64(KBEngine.app.entity_uuid);
+		bundle.writeInt32(KBEngine.app.entity_id);
+		bundle.send(KBEngine.app);
 	}
 	
 	this.login_loginapp = function(noconnect)
