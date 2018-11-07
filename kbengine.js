@@ -2986,7 +2986,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		if(!(stream instanceof KBEngine.MemoryStream))
 		{
 			KBEngine.ERROR_MSG("writeFragmentMessage(): stream must be MemoryStream instances!");
-			return;
+			return false;
 		}
 
 		var app = KBEngine.app;
