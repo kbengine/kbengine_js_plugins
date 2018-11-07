@@ -2973,7 +2973,8 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			}
 			else
 			{
-				app.mergeFragmentMessage(stream);
+				if(app.mergeFragmentMessage(stream))
+					break;
 			}
 		}
 	}  
@@ -3004,7 +3005,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 
 		var opsize = stream.length();
 		if(opsize == 0)
-			return 0;
+			return false;
 
 		var app = KBEngine.app;
 		var fragmentStream = app.fragmentStream;
@@ -3040,12 +3041,14 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			stream.rpos += app.fragmentDatasRemain;
 			app.fragmentDatasFlag = FragmentDataTypes.FRAGMENT_DATA_UNKNOW;
 			app.fragmentDatasRemain = 0;
+			return false;
 		}
 		else
 		{
 			fragmentStream.append(stream, stream.rpos, opsize);
 			app.fragmentDatasRemain -= opsize;
 			stream.done();
+			return true;
 		}
 	}
 
@@ -3326,7 +3329,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 	{
 		KBEngine.app.createDataTypeFromStreams(stream, true);
 		
-		while(!stream.readEOF())
+		while(stream.length() > 0)
 		{
 			var scriptmodule_name = stream.readString();
 			var scriptUtype = stream.readUint16();
