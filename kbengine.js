@@ -3002,7 +3002,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		if(!(stream instanceof KBEngine.MemoryStream))
 		{
 			KBEngine.ERROR_MSG("mergeFragmentMessage(): stream must be MemoryStream instances!");
-			return;
+			return false;
 		}
 
 		var opsize = stream.length();
