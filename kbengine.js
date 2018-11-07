@@ -65,7 +65,7 @@ KBEngine.Class.extend = function(props) {
 /*
 	如果ArrayBuffer没有transfer()的方法, 则为ArrayBuffer添加transfer()方法
 	该方法回一个新的ArrayBuffer， 其内容取自oldBuffer的数据，并且根据 newByteLength 的大小来对数据进行截取
-    参考:https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/transfer
+	参考:https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/transfer
  */
 if(!ArrayBuffer.transfer) {
     ArrayBuffer.transfer = function (source, length) {
