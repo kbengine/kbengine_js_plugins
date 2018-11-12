@@ -3396,7 +3396,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			bundle.send(KBEngine.app);
 			KBEngine.app.socket.onmessage = KBEngine.app.Client_onImportClientMessages;  
 			KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_createAccount: start importClientMessages ...");
-			KBEngine.Event.fire(KBEngine.EventTypes.Loginapp_importClientMessages);
+			KBEngine.Event.fire("Loginapp_importClientMessages");
 		}
 		else
 		{
