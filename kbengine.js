@@ -438,7 +438,7 @@ KBEngine.Event = function()
 		this._isPause = false;
 
 		var firedEvents = this._firedEvents;
-		while(fireEvents.length > 0)
+		while(firedEvents.length > 0)
 		{
 			var evt = firedEvents.shift();
 			var info = evt.evtInfo;
