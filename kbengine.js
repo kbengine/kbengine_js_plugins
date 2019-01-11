@@ -898,11 +898,11 @@ KBEngine.MemoryStream = function(size_or_buffer)
 	}
 
 	this.reclaimObject = function()
-    {
+	{
 		this.clear();
 
 		if(KBEngine.MemoryStream._objects != undefined)
-        	KBEngine.MemoryStream._objects.push(this);
+			KBEngine.MemoryStream._objects.push(this);
 	}
 }
 
