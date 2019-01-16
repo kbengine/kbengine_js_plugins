@@ -1089,8 +1089,7 @@ KBEngine.Bundle = function()
 			if(this.stream != this.memorystreams[i])
 				this.memorystreams[i].reclaimObject();
 		}
-			
-		
+
 		if(this.stream)
 			this.stream.clear();
 		else
@@ -3451,7 +3450,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var fileDatas = stream.readBlob()
 		KBEngine.Event.fire("onImportClientSDK", remainingFiles, fileName, fileSize, fileDatas);
 	}
-	
+
 	this.onOpenLoginapp_login = function()
 	{  
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_login: successfully!");
