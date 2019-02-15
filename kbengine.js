@@ -3031,7 +3031,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.serverScriptVersion = "";
 		KBEngine.app.serverProtocolMD5 = "";
 		KBEngine.app.serverEntityDefMD5 = "";
-		KBEngine.app.clientVersion = "1.2.11";
+		KBEngine.app.clientVersion = "1.3.1";
 		KBEngine.app.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
