@@ -1,25 +1,31 @@
 /**
- * KBEngine的html5客户端扩展ts版   1.x版本
+ * KBEngine的html5客户端扩展ts版   2.x版本
  * cocos creator 环境下使用方法
- * 将bin/kbengine.js导入为插件，将bin/kbengine.d.ts放在项目根目录下，即可
- * 
- * todo 未完成内容
- * 1、强类型匹配
- * 2、代码注释
  * 
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 KBEngine['Entities'] = KBEngine['Entities'] || {};KBEngine['Entities']['你的实体类名']=你的实体类名;将声明提升至全局
- *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
- *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
+ *      2、cocos creator环境下,按下面方法声明实体
+ *          @KBEngine.registerEntity('Account')
+            export default class AccountEntity extends KBEngine.Entity {
+                __init__() {
+                    console.log('创建account')
+                }
+            }
+            //这里加入声明用于vscode代码提示
+            declare global {
+                namespace KBEngine.Entities {
+                    class Account extends AccountEntity { }
+                }
+            } 
+ *      3、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
 
 /*-----------------------------------------------------------------------------------------
                                             global
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
-    export const CLIENT_VERSION ='2.0.0';
-    export const CLIENT_SCRIPT_VERSION ='0.1.0';
+    export const CLIENT_VERSION = '2.0.0';
+    export const CLIENT_SCRIPT_VERSION = '0.1.0';
 
     export const PACKET_MAX_SIZE = 1500;
     export const PACKET_MAX_SIZE_TCP = 1460;
@@ -27,6 +33,8 @@ namespace KBEngine {
 
     export const MESSAGE_ID_LENGTH = 2;
     export const MESSAGE_LENGTH_LENGTH = 2;
+    export const MESSAGE_LENGTH1_LENGTH = 4;
+    export const MESSAGE_MAX_SIZE = 65535;
 
     export const CLIENT_NO_FLOAT = 0;
     export const KBE_FLT_MAX = 3.402823466e+38;
@@ -35,6 +43,27 @@ namespace KBEngine {
  * 加上声明避免cocos creator编辑器报错
  */
 window['KBEngine'] = KBEngine;
+
+
+if (!ArrayBuffer['transfer']) {
+    ArrayBuffer['transfer'] = function (source: ArrayBuffer, length: number): ArrayBuffer {
+        let dest = new ArrayBuffer(length);
+
+        if (!(source instanceof ArrayBuffer) || !(dest instanceof ArrayBuffer)) {
+            throw new TypeError("ArrayBuffer.transfer, error: Source and destination must be ArrayBuffer instances");
+        }
+
+        if (dest.byteLength >= source.byteLength) {
+            let buf = new Uint8Array(dest);
+            buf.set(new Uint8Array(source), 0);
+        }
+        else {
+            throw new RangeError("ArrayBuffer.transfer, error: destination has not enough space");
+        }
+
+        return dest;
+    };
+};
 /*-----------------------------------------------------------------------------------------
                                                     number64bits
 -----------------------------------------------------------------------------------------*/
@@ -196,12 +225,11 @@ namespace KBEngine {
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
     export class EventInfo {
-        constructor(classinst, callbackfn) {
-            this.callbackfn = callbackfn;
-            this.classinst = classinst;
+        constructor(public classinst, public callbackfn) {
         }
-        classinst;
-        callbackfn;
+    }
+    export class FiredEvent {
+        constructor(public evtName, public evtInfo, public ars) { }
     }
     export interface IEvents {
         [evtName: string]: EventInfo[];
@@ -211,6 +239,8 @@ namespace KBEngine {
 
         }
         _events: IEvents = {};
+        _isPause = false;
+        _firedEvents: FiredEvent[] = []
         register(evtName: string, classinst, strCallback: string) {
             let callbackfn = classinst[strCallback];
             if (callbackfn == undefined) {
@@ -227,23 +257,47 @@ namespace KBEngine {
             let info = new EventInfo(classinst, callbackfn);
             evtlst.push(info);
         }
-        deregister(evtName: string, classinst) {
+        deregisterAll(classinst) {
             for (let itemkey in this._events) {
-                let evtlst = this._events[itemkey];
-                while (true) {
-                    let found = false;
-                    for (let i = 0; i < evtlst.length; i++) {
-                        let info = evtlst[i];
-                        if (info.classinst == classinst) {
-                            evtlst.splice(i, 1);
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found)
+                this.deregister(itemkey, classinst)
+            }
+        }
+        deregister(evtName: string, classinst) {
+            let evtlst = this._events[evtName];
+            if (!evtlst) return;
+            while (true) {
+                let found = false;
+                for (let i = 0; i < evtlst.length; i++) {
+                    let info = evtlst[i];
+                    if (info.classinst == classinst) {
+                        evtlst.splice(i, 1);
+                        found = true;
                         break;
+                    }
                 }
+
+                if (!found)
+                    break;
+            }
+        }
+        removeAllFiredEvent(classinst) {
+            this.removeFiredEvent("", classinst);
+        }
+        removeFiredEvent(evtName: string, classinst) {
+            let firedEvents = this._firedEvents;
+            while (true) {
+                let found = false;
+                for (let i = 0; i < firedEvents.length; i++) {
+                    let evt = firedEvents[i];
+                    if ((evtName == "" || evt.evtName == evtName) && evt.evtInfo.classinst == classinst) {
+                        firedEvents.splice(i, 1);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                    break;
             }
         }
         fire(evtName: string, ...args: any[]) {
@@ -264,7 +318,12 @@ namespace KBEngine {
 
             for (let i = 0; i < evtlst.length; i++) {
                 let info = evtlst[i];
-                info.callbackfn.apply(info.classinst, args || []);
+                if (!this._isPause) {
+                    info.callbackfn.apply(info.classinst, args || []);
+                } else {
+                    let eobj = new FiredEvent(evtName, info, args || []);
+                    this._firedEvents.push(eobj);
+                }
                 // if (args.length < 1) {
                 //     info.callbackfn.apply(info.classinst);
                 // }
@@ -273,6 +332,30 @@ namespace KBEngine {
                 // }
             }
         }
+        pasue() {
+            this._isPause = true;
+        }
+        resume() {
+            this._isPause = false;
+
+            let firedEvents = this._firedEvents;
+            while (firedEvents.length > 0) {
+                let evt = firedEvents.shift();
+                let info = evt.evtInfo;
+                let ars = evt.ars;
+
+                if (ars.length < 1) {
+                    info.callbackfn.apply(info.classinst);
+                }
+                else {
+                    info.callbackfn.apply(info.classinst, ars);
+                }
+            }
+        }
+        clear() {
+            this._events = {};
+            this._firedEvents.splice(0, this._firedEvents.length);
+        }
     }
     export const Event = new Events();
 }
@@ -280,8 +363,19 @@ namespace KBEngine {
                                                 memorystream
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
+    export class PackFloatXType {
+        _unionData = new ArrayBuffer(4);
+        fv = new Float32Array(this._unionData, 0, 1);
+        uv = new Uint32Array(this._unionData, 0, 1);
+        iv = new Int32Array(this._unionData, 0, 1);
+    }
+
+    export const _xPackData = new PackFloatXType();
+    export const _yPackData = new PackFloatXType();
+    export const _zPackData = new PackFloatXType();
+
     export class MemoryStream {
-        constructor(size_or_buffer) {
+        constructor(size_or_buffer: number | ArrayBuffer) {
             if (size_or_buffer instanceof ArrayBuffer) {
                 this.buffer = size_or_buffer;
             }
@@ -318,7 +412,9 @@ namespace KBEngine {
         }
 
         readInt64() {
-            return new INT64(this.readUint32(), this.readUint32());
+            let lo = this.readUint32()
+            let hi = this.readUint32()
+            return new INT64(lo, hi);
         }
 
         readUint8() {
@@ -340,7 +436,9 @@ namespace KBEngine {
         }
 
         readUint64() {
-            return new UINT64(this.readUint32(), this.readUint32());
+            let lo = this.readUint32()
+            let hi = this.readUint32()
+            return new UINT64(lo, hi);
         }
 
         readFloat() {
@@ -408,8 +506,8 @@ namespace KBEngine {
         }
 
         readPackXZ() {
-            let xPackData = new MemoryStream.PackFloatXType();
-            let zPackData = new MemoryStream.PackFloatXType();
+            let xPackData = _xPackData;
+            let zPackData = _zPackData;
 
             xPackData.fv[0] = 0.0;
             zPackData.fv[0] = 0.0;
@@ -443,7 +541,13 @@ namespace KBEngine {
 
         readPackY() {
             let v = this.readUint16();
-            return v;
+
+            let yPackData = _yPackData;
+            yPackData.uv[0] = 0x40000000;
+            yPackData.uv[0] |= (v & 0x7fff) << 12;
+            yPackData.fv[0] -= 2.0;
+            yPackData.uv[0] |= (v & 0x8000) << 16;
+            return yPackData.fv[0];
         }
 
         //---------------------------------------------------------------------------------
@@ -484,7 +588,7 @@ namespace KBEngine {
                 this.writeUint8(v >> i * 8 & 0xff);
         }
 
-        writeUint64(v) {
+        writeUint64(v: UINT64) {
             this.writeUint32(v.lo);
             this.writeUint32(v.hi);
         }
@@ -560,6 +664,15 @@ namespace KBEngine {
             buf[i++] = 0;
             this.wpos += i;
         }
+        append(stream: MemoryStream, offset: number, size: number) {
+            if (size > this.space()) {
+                this.buffer = ArrayBuffer['transfer'](this.buffer, this.buffer.byteLength + size * 2);
+            }
+
+            let buf = new Uint8Array(this.buffer, this.wpos, size);
+            buf.set(new Uint8Array(stream.buffer, offset, size), 0);
+            this.wpos += size;
+        }
 
         //---------------------------------------------------------------------------------
         readSkip(v) {
@@ -587,11 +700,31 @@ namespace KBEngine {
         }
 
         //---------------------------------------------------------------------------------
-        getbuffer(v) {
+        getbuffer() {
             return this.buffer.slice(this.rpos, this.wpos);
+        }
+        setbuffer(buffer: ArrayBuffer) {
+            this.clear();
+            this.buffer = buffer;
+        }
+        size() {
+            return this.buffer.byteLength;
+        }
+        clear() {
+            this.rpos = this.wpos = 0;
+            if (this.buffer.byteLength > PACKET_MAX_SIZE) {
+                this.buffer = new ArrayBuffer(PACKET_MAX_SIZE)
+            }
+        }
+        reclaimObject() {
+            this.clear()
+            if (MemoryStream._objects != undefined) {
+                MemoryStream._objects.push(this)
+            }
         }
     }
     export module MemoryStream {
+        export const _objects: MemoryStream[] = []
         export class PackFloatXType {
             _unionData: ArrayBuffer;
             fv: Float32Array;
@@ -604,6 +737,9 @@ namespace KBEngine {
                 this.iv = new Int32Array(this._unionData, 0, 1);
             };
         }
+        export function createObject() {
+            return MemoryStream._objects.length > 0 ? MemoryStream._objects.pop() : new MemoryStream(PACKET_MAX_SIZE_TCP);
+        }
     }
 }
 /*-----------------------------------------------------------------------------------------
@@ -611,10 +747,14 @@ namespace KBEngine {
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
     export class Bundle {
-        constructor() {
-            this.stream = new MemoryStream(PACKET_MAX_SIZE_TCP);
+        static _objects: Bundle[] = []
+        static createObject() {
+            return Bundle._objects.length > 0 ? Bundle._objects.pop() : new Bundle();
         }
-        memorystreams: Array<any> = new Array();
+        constructor() {
+            this.stream = MemoryStream.createObject();
+        }
+        memorystreams: Array<MemoryStream> = new Array();
         stream: MemoryStream;
         numMessage: number = 0;
         messageLengthBuffer: Uint8Array = null;
@@ -655,6 +795,8 @@ namespace KBEngine {
                 this.writeMsgLength(this.messageLength);
                 if (this.stream)
                     this.memorystreams.push(this.stream);
+
+                this.stream = MemoryStream.createObject();
             }
 
             if (issend) {
@@ -669,19 +811,18 @@ namespace KBEngine {
             this.fini(true);
 
             for (let i = 0; i < this.memorystreams.length; i++) {
-                let stream = this.memorystreams[i];
-                network.send(stream.getbuffer());
+                let tmpStream = this.memorystreams[i];
+                network.send(tmpStream.getbuffer());
             }
 
-            this.memorystreams = new Array();
-            this.stream = new MemoryStream(PACKET_MAX_SIZE_TCP);
+            this.reclaimObject();
         }
 
         //---------------------------------------------------------------------------------
         checkStream(v) {
             if (v > this.stream.space()) {
                 this.memorystreams.push(this.stream);
-                this.stream = new MemoryStream(PACKET_MAX_SIZE_TCP);
+                this.stream = MemoryStream.createObject();
             }
 
             this.messageLength += v;
@@ -746,6 +887,29 @@ namespace KBEngine {
         writeBlob(v) {
             this.checkStream(v.length + 4);
             this.stream.writeBlob(v);
+        }
+        clear() {
+            for (let i = 0; i < this.memorystreams.length; i++) {
+                if (this.stream != this.memorystreams[i])
+                    this.memorystreams[i].reclaimObject();
+            }
+
+            if (this.stream)
+                this.stream.clear();
+            else
+                this.stream = MemoryStream.createObject();
+
+            this.memorystreams = new Array();
+            this.numMessage = 0;
+            this.messageLengthBuffer = null;
+            this.messageLength = 0;
+            this.msgtype = null;
+        }
+        reclaimObject() {
+            this.clear();
+
+            if (Bundle._objects != undefined)
+                Bundle._objects.push(this);
         }
     }
     export const reader = new MemoryStream(0);
@@ -824,6 +988,8 @@ namespace KBEngine {
         datatype2id["FIXED_DICT"] = 18;
 
         datatype2id["ARRAY"] = 19;
+
+        datatype2id["ENTITYCALL"] = 20;
     }
     mappingDataType();
 
@@ -864,24 +1030,11 @@ namespace KBEngine {
         }
     }
     export class Message {
-        constructor(id, name, length, argstype, args, handler) {
-            this.id = id;
-            this.name = name;
-            this.length = length;
-            this.argsType = argstype;
+        constructor(public id, public name, public length, public argsType, public args, public handler) {
             for (let i = 0; i < args.length; i++) {
                 args[i] = bindReader(args[i]);
             }
-
-            this.args = args;
-            this.handler = handler;
         }
-        id;
-        name;
-        length;
-        argsType;
-        args;
-        handler;
         createFromStream(msgstream) {
             if (this.args.length <= 0)
                 return msgstream;
@@ -928,12 +1081,8 @@ namespace KBEngine {
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
     export class Vector2 {
-        constructor(x:number, y:number) {
-            this.x = x;
-            this.y = y;
+        constructor(public x: number, public y: number) {
         }
-        x: number;
-        y: number;
         distance(pos: Vector2) {
             let x = pos.x - this.x;
             let y = pos.y - this.y;
@@ -970,14 +1119,11 @@ namespace KBEngine {
         }
     }
     export class Vector3 {
-        constructor(x:number, y:number, z:number) {
+        constructor(public x: number, public y: number, public z: number) {
             this.x = x;
             this.y = y;
             this.z = z;
         }
-        x: number;
-        y: number;
-        z: number;
         distance(pos: Vector3) {
             let x = pos.x - this.x;
             let y = pos.y - this.y;
@@ -1025,29 +1171,22 @@ namespace KBEngine {
             return this;
         }
     }
-    /**
-     * todo 这个类的第四个参数的没搞清楚，所有如果没有必要，不要用这个东西
-     */
     export class Vector4 {
-        constructor(x:number, y:number, z:number, w:number) {
+        constructor(public x: number, public y: number, public z: number, public w: number) {
             this.x = x;
             this.y = y;
             this.z = z;
             this.w = w;
         }
-        x: number;
-        y: number;
-        z: number;
-        w: number;
         distance(pos: Vector4) {
-            var x = pos.x - this.x;
-            var y = pos.y - this.y;
-            var z = pos.z - this.z;
-            var w = pos.w - this.w;
+            let x = pos.x - this.x;
+            let y = pos.y - this.y;
+            let z = pos.z - this.z;
+            let w = pos.w - this.w;
             return Math.sqrt(x * x + y * y + z * z + w * w);
         }
 
-        add(vec4:Vector4) {
+        add(vec4: Vector4) {
             this.x += vec4.x;
             this.y += vec4.y;
             this.z += vec4.z;
@@ -1055,7 +1194,7 @@ namespace KBEngine {
             return this;
         }
 
-        sub(vec4:Vector4) {
+        sub(vec4: Vector4) {
             this.x -= vec4.x;
             this.y -= vec4.y;
             this.z -= vec4.z;
@@ -1063,14 +1202,14 @@ namespace KBEngine {
             return this;
         }
 
-        mul(num:number) {
+        mul(num: number) {
             this.x *= num;
             this.y *= num;
             this.z *= num;
             this.w *= num;
             return this;
         }
-        div(num:number) {
+        div(num: number) {
             this.x /= num;
             this.y /= num;
             this.z /= num;
@@ -1094,7 +1233,7 @@ namespace KBEngine {
         }
         return value < min_inclusive ? min_inclusive : value < max_inclusive ? value : max_inclusive;
     }
-    export function int82angle(angle, half) {
+    export function int82angle(angle: number, half: boolean) {
         return angle * (Math.PI / (half ? 254.0 : 128.0));
     }
     export function angle2int8(v: number, half: boolean) {
@@ -1113,10 +1252,10 @@ namespace KBEngine {
 /*-----------------------------------------------------------------------------------------
                                             entity
 -----------------------------------------------------------------------------------------*/
-namespace KBEngine {
-    export namespace Entities {
 
-    }
+namespace KBEngine {
+    export module Entities { }
+
     export class Entity {
         constructor() {
 
@@ -1340,6 +1479,12 @@ namespace KBEngine {
             Event.fire("set_direction", this);
         }
     }
+    export function registerEntity(name: string) {
+        return (ctor: new () => Entity) => {
+            KBEngine['Entities'] = KBEngine['Entities'] || {}
+            KBEngine['Entities'][name] = ctor;
+        }
+    }
 }
 /*-----------------------------------------------------------------------------------------
                                                 EntityCall
@@ -1347,9 +1492,9 @@ namespace KBEngine {
 namespace KBEngine {
     export const ENTITYCALL_TYPE_CELL = 0;
     export const ENTITYCALL_TYPE_BASE = 1;
-    
+
     //这个东西好像没有同步给客户端
-    export class EntityComponent{
+    export class EntityComponent {
 
     }
 
@@ -1371,7 +1516,7 @@ namespace KBEngine {
         }
         newCall() {
             if (this.bundle == null)
-                this.bundle = new Bundle();
+                this.bundle = Bundle.createObject();
 
             if (this.type == ENTITYCALL_TYPE_CELL)
                 this.bundle.newMessage(messages['Baseapp_onRemoteCallCellMethodFromClient']);
@@ -1658,12 +1803,14 @@ namespace KBEngine {
 
         createFromStream(stream) {
             if (CLIENT_NO_FLOAT) {
-                return new Vector2(reader.readInt32.call(stream),
-                    reader.readInt32.call(stream));
+                let x = reader.readInt32.call(stream)
+                let y = reader.readInt32.call(stream)
+                return new Vector2(x, y);
             }
             else {
-                return new Vector2(reader.readFloat.call(stream),
-                    reader.readFloat.call(stream));
+                let x = reader.readFloat.call(stream)
+                let y = reader.readFloat.call(stream)
+                return new Vector2(x, y);
             }
         }
 
@@ -1679,7 +1826,7 @@ namespace KBEngine {
         }
 
         parseDefaultValStr(v) {
-            return new KBEngine.Vector2(0.0, 0.0);;
+            return new Vector2(0.0, 0.0);;
         }
 
         isSameType(v) {
@@ -1719,7 +1866,7 @@ namespace KBEngine {
         }
 
         parseDefaultValStr(v) {
-            return new KBEngine.Vector3(0.0, 0.0, 0.0);
+            return new Vector3(0.0, 0.0, 0.0);
         }
 
         isSameType(v) {
@@ -1738,13 +1885,13 @@ namespace KBEngine {
             if (CLIENT_NO_FLOAT) {
                 return new Vector4(reader.readInt32.call(stream),
                     reader.readInt32.call(stream),
-                    reader.readInt32.call(stream), 
+                    reader.readInt32.call(stream),
                     reader.readInt32.call(stream));
             }
             else {
                 return new Vector4(reader.readFloat.call(stream),
                     reader.readFloat.call(stream),
-                    reader.readFloat.call(stream), 
+                    reader.readFloat.call(stream),
                     reader.readFloat.call(stream));
             }
         }
@@ -1765,7 +1912,7 @@ namespace KBEngine {
         }
 
         parseDefaultValStr(v) {
-            return new KBEngine.Vector4(0.0, 0.0, 0.0, 0.0);
+            return new Vector4(0.0, 0.0, 0.0, 0.0);
         }
 
         isSameType(v) {
@@ -1819,7 +1966,7 @@ namespace KBEngine {
             return typeof (v) == "string";
         }
     }
-    export class DATATYPE_ENTITY_COMPONENT{
+    export class DATATYPE_ENTITY_COMPONENT {
         bind() {
         }
 
@@ -1981,8 +2128,8 @@ namespace KBEngine {
         export const VECTOR3 = new DATATYPE_VECTOR3();
         export const VECTOR4 = new DATATYPE_VECTOR4();
         export const PYTHON = new DATATYPE_PYTHON();
-        export const PY_DICT = new DATATYPE_PYTHON();
-        export const PY_LIST = new DATATYPE_PYTHON();
+        // export const PY_DICT = new DATATYPE_PYTHON();
+        // export const PY_LIST = new DATATYPE_PYTHON();
         export const UNICODE = new DATATYPE_UNICODE();
         export const ENTITYCALL = new DATATYPE_ENTITYCALL();
         export const ENTITY_COMPONENT = new DATATYPE_ENTITY_COMPONENT();
@@ -1999,17 +2146,168 @@ namespace KBEngine {
         updateHZ = 100;
         serverHeartbeatTick = 15;
 
-        //TODO    wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
-        protocol: string = "ws://";
+        isWss: boolean = false;
+        //TODO  wss需要参数，因为服务器不支持wss，需要使用Nginx转发一次，在这里设置强制修改baseapp连接端口到Nginx端口
+        get protocol(): string { return this.isWss ? "wss://" : "ws://" }
         forceBasePort: number = 0;
 
-        // Reference: http://www.org/docs/programming/clientsdkprogramming.html, client types
+        // Reference: http://github.io/docs/programming/clientsdkprogramming.html, client types
         clientType = 5;
 
         // 在Entity初始化时是否触发属性的set_*事件(callPropertysSetMethods)
         isOnInitCallPropertysSetMethods = true;
     }
+    export const EventTypes = {
+        // Create new account.
+        // <para> param1(string): accountName</para>
+        // <para> param2(string): password</para>
+        // <para> param3(bytes): datas // Datas by user defined. Data will be recorded into the KBE account database, you can access the datas through the script layer. If you use third-party account system, datas will be submitted to the third-party system.</para>
+        createAccount: "createAccount",
 
+        // Login to server.
+        // <para> param1(string): accountName</para>
+        // <para> param2(string): password</para>
+        // <para> param3(bytes): datas // Datas by user defined. Data will be recorded into the KBE account database, you can access the datas through the script layer. If you use third-party account system, datas will be submitted to the third-party system.</para>
+        login: "login",
+
+        // Logout to baseapp, called when exiting the client.	
+        logout: "logout",
+
+        // Relogin to baseapp.
+        reloginBaseapp: "reloginBaseapp",
+
+        // Request server binding account Email.
+        // <para> param1(string): emailAddress</para>
+        bindAccountEmail: "bindAccountEmail",
+
+        // Request to set up a new password for the account. Note: account must be online.
+        // <para> param1(string): old_password</para>
+        // <para> param2(string): new_password</para>
+        newPassword: "newPassword",
+
+        // ------------------------------------连接相关------------------------------------
+
+        // Kicked of the current server.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onKicked: "onKicked",
+
+        // Disconnected from the server.
+        onDisconnected: "onDisconnected",
+
+        // Status of connection server.
+        // <para> param1(bool): success or fail</para>
+        onConnectionState: "onConnectionState",
+
+        // ------------------------------------logon相关------------------------------------
+
+        // Create account feedback results.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        // <para> param2(bytes): datas. // If you use third-party account system, the system may fill some of the third-party additional datas. </para>
+        onCreateAccountResult: "onCreateAccountResult",
+
+        // Engine version mismatch.
+        // <para> param1(string): clientVersion
+        // <para> param2(string): serverVersion
+        onVersionNotMatch: "onVersionNotMatch",
+
+        // script version mismatch.
+        // <para> param1(string): clientScriptVersion
+        // <para> param2(string): serverScriptVersion
+        onScriptVersionNotMatch: "onScriptVersionNotMatch",
+
+        // Login failed.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onLoginFailed: "onLoginFailed",
+
+        // Login to baseapp.
+        onLoginBaseapp: "onLoginBaseapp",
+
+        // Login baseapp failed.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onLoginBaseappFailed: "onLoginBaseappFailed",
+
+        // Relogin to baseapp.
+        onReloginBaseapp: "onReloginBaseapp",
+
+        // Relogin baseapp success.
+        onReloginBaseappSuccessfully: "onReloginBaseappSuccessfully",
+
+        // Relogin baseapp failed.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onReloginBaseappFailed: "onReloginBaseappFailed",
+
+        // ------------------------------------实体cell相关事件------------------------------------
+
+        // Entity enter the client-world.
+        // <para> param1: Entity</para>
+        onEnterWorld: "onEnterWorld",
+
+        // Entity leave the client-world.
+        // <para> param1: Entity</para>
+        onLeaveWorld: "onLeaveWorld",
+
+        // Player enter the new space.
+        // <para> param1: Entity</para>
+        onEnterSpace: "onEnterSpace",
+
+        // Player leave the space.
+        // <para> param1: Entity</para>
+        onLeaveSpace: "onLeaveSpace",
+
+        // Sets the current position of the entity.
+        // <para> param1: Entity</para>
+        set_position: "set_position",
+
+        // Sets the current direction of the entity.
+        // <para> param1: Entity</para>
+        set_direction: "set_direction",
+
+        // The entity position is updated, you can smooth the moving entity to new location.
+        // <para> param1: Entity</para>
+        updatePosition: "updatePosition",
+
+        // The current space is specified by the geometry mapping.
+        // Popular said is to load the specified Map Resources.
+        // <para> param1(string): resPath</para>
+        addSpaceGeometryMapping: "addSpaceGeometryMapping",
+
+        // Server spaceData set data.
+        // <para> param1(int32): spaceID</para>
+        // <para> param2(string): key</para>
+        // <para> param3(string): value</para>
+        onSetSpaceData: "onSetSpaceData",
+
+        // Start downloading data.
+        // <para> param1(int32): rspaceID</para>
+        // <para> param2(string): key</para>
+        onDelSpaceData: "onDelSpaceData",
+
+        // Triggered when the entity is controlled or out of control.
+        // <para> param1: Entity</para>
+        // <para> param2(bool): isControlled</para>
+        onControlled: "onControlled",
+
+        // Lose controlled entity.
+        // <para> param1: Entity</para>
+        onLoseControlledEntity: "onLoseControlledEntity",
+
+        // ------------------------------------数据下载相关------------------------------------
+
+        // Start downloading data.
+        // <para> param1(uint16): resouce id</para>
+        // <para> param2(uint32): data size</para>
+        // <para> param3(string): description</para>
+        onStreamDataStarted: "onStreamDataStarted",
+
+        // Receive data.
+        // <para> param1(uint16): resouce id</para>
+        // <para> param2(bytes): datas</para>
+        onStreamDataRecv: "onStreamDataRecv",
+
+        // The downloaded data is completed.
+        // <para> param1(uint16): resouce id</para>
+        onStreamDataCompleted: "onStreamDataCompleted",
+    }
 }
 /*-----------------------------------------------------------------------------------------
                                             KBEngine app
@@ -2017,13 +2315,10 @@ namespace KBEngine {
 namespace KBEngine {
     export const moduledefs = {};
     export class KBEngineApp {
-        constructor(args: KBEngineArgs) {
+        constructor(public args: KBEngineArgs) {
             // console.assert(app == null || app == undefined, "Assertion of app not is null");
-
             app = this;
-            this.args = args;
         }
-        args: KBEngineArgs;
         baseappIp: string;
         username = "testhtml51";
         password = "123456";
@@ -2034,6 +2329,7 @@ namespace KBEngine {
         baseappMessageImported = false;
         serverErrorsDescrImported = false;
         entitydefImported = false;
+
         // 这个参数的选择必须与kbengine_defs.xml::cellapp/aliasEntityID的参数保持一致
         useAliasEntityID = true;
         serverErrs: { [err: string]: ServerErr } = {};
@@ -2047,9 +2343,18 @@ namespace KBEngine {
         baseappPort = 0;
         baseappUdpPort = 0;
 
+        currMsgID = 0;
+        currMsgCount = 0;
+        currMsgLen = 0;
+
+        fragmentStream = null;
+        fragmentDatasFlag = FragmentDataTypes.FRAGMENT_DATA_UNKNOW;
+        fragmentDatasRemain = 0;
+
         socket;
         currserver: string;
         currstate = "create";
+        currconnect = 'loginapp';
 
         // 扩展数据
         serverdatas = "";
@@ -2084,6 +2389,8 @@ namespace KBEngine {
         lastTickTime = Date.now();
         lastTickCBTime = Date.now();
         component;
+        msgStream = new MemoryStream(PACKET_MAX_SIZE_TCP);
+
         resetSocket() {
             try {
                 if (app.socket != undefined && app.socket != null) {
@@ -2109,6 +2416,7 @@ namespace KBEngine {
 
             app.currserver = "loginapp";
             app.currstate = "create";
+            app.currconnect = 'loginapp'
 
             // 扩展数据
             app.serverdatas = "";
@@ -2150,19 +2458,23 @@ namespace KBEngine {
             app.component = "client";
         }
         installEvents() {
-            Event.register("createAccount", app, "createAccount");
-            Event.register("login", app, "login");
-            Event.register("reloginBaseapp", app, "reloginBaseapp");
-            Event.register("bindAccountEmail", app, "bindAccountEmail");
-            Event.register("newPassword", app, "newPassword");
+            Event.register(EventTypes.createAccount, app, "createAccount");
+            Event.register(EventTypes.login, app, "login");
+            Event.register(EventTypes.logout, app, 'logout')
+            Event.register(EventTypes.reloginBaseapp, app, "reloginBaseapp");
+            Event.register(EventTypes.bindAccountEmail, app, "bindAccountEmail");
+            Event.register(EventTypes.newPassword, app, "newPassword");
         }
         uninstallEvents() {
-            Event.deregister("reloginBaseapp", app);
-            Event.deregister("login", app);
-            Event.deregister("createAccount", app);
+            Event.deregister(EventTypes.createAccount, app);
+            Event.deregister(EventTypes.login, app);
+            Event.deregister(EventTypes.logout, app)
+            Event.deregister(EventTypes.reloginBaseapp, app);
+            Event.deregister(EventTypes.bindAccountEmail, app);
+            Event.deregister(EventTypes.newPassword, app);
         }
         hello() {
-            let bundle = new Bundle();
+            let bundle = Bundle.createObject();
 
             if (app.currserver == "loginapp")
                 bundle.newMessage(messages['Loginapp_hello']);
@@ -2189,7 +2501,7 @@ namespace KBEngine {
             }
             catch (e) {
                 ERROR_MSG('WebSocket init error!');
-                Event.fire("onConnectionState", false);
+                Event.fire(EventTypes.onConnectionState, false);
                 return;
             }
 
@@ -2205,52 +2517,156 @@ namespace KBEngine {
         onopen() {
             INFO_MSG('connect success!');
             app.socket.onerror = app.onerror_after_onopen;
-            Event.fire("onConnectionState", true);
+            Event.fire(EventTypes.onConnectionState, true);
         }
         onerror_before_onopen(evt) {
             ERROR_MSG('connect error:' + evt.data);
             app.resetSocket();
-            Event.fire("onConnectionState", false);
+            Event.fire(EventTypes.onConnectionState, false);
         }
         onerror_after_onopen(evt) {
             ERROR_MSG('connect error:' + evt.data);
             app.resetSocket();
-            Event.fire("onDisconnected");
+            Event.fire(EventTypes.onDisconnected);
         }
         onmessage(msg) {
-            let stream = new MemoryStream(msg.data);
+            let stream = app.msgStream;
+            stream.setbuffer(msg.data);
             stream.wpos = msg.data.byteLength;
 
-            while (stream.rpos < stream.wpos) {
-                let msgid = stream.readUint16();
-                let msgHandler = clientmessages[msgid];
+            while (stream.length() > 0 || app.fragmentStream != null) {
+                if (app.fragmentDatasFlag == FragmentDataTypes.FRAGMENT_DATA_UNKNOW) {
+                    if (app.currMsgID == 0) {
+                        if (MESSAGE_ID_LENGTH > 1 && stream.length() < MESSAGE_ID_LENGTH) {
+                            app.writeFragmentMessage(FragmentDataTypes.FRAGMENT_DATA_MESSAGE_ID, stream, MESSAGE_ID_LENGTH);
+                            break;
+                        }
 
-                if (!msgHandler) {
-                    ERROR_MSG("KBEngineApp::onmessage[" + app.currserver + "]: not found msg(" + msgid + ")!");
-                }
-                else {
-                    let msglen = msgHandler.length;
-                    if (msglen == -1) {
-                        msglen = stream.readUint16();
-
-                        // 扩展长度
-                        if (msglen == 65535)
-                            msglen = stream.readUint32();
+                        app.currMsgID = stream.readUint16();
                     }
 
-                    let wpos = stream.wpos;
-                    let rpos = stream.rpos + msglen;
-                    stream.wpos = rpos;
-                    msgHandler.handleMessage(stream);
-                    stream.wpos = wpos;
-                    stream.rpos = rpos;
+                    let msgHandler = clientmessages[app.currMsgID];
+
+                    if (!msgHandler) {
+                        app.currMsgID = 0;
+                        app.currMsgLen = 0;
+                        ERROR_MSG("KBEngineApp::onmessage[" + app.currserver + "]: not found msg(" + app.currMsgID + ")!");
+                        break;
+                    }
+
+                    let msglen = msgHandler.length;
+                    if (app.currMsgLen == 0) {
+                        if (msglen == -1) {
+                            if (stream.length() < MESSAGE_LENGTH_LENGTH) {
+                                app.writeFragmentMessage(FragmentDataTypes.FRAGMENT_DATA_MESSAGE_LENGTH, stream, MESSAGE_LENGTH_LENGTH);
+                                break;
+                            }
+                            else {
+                                msglen = stream.readUint16();
+                                app.currMsgLen = msglen;
+
+                                // 扩展长度
+                                if (msglen == MESSAGE_MAX_SIZE) {
+                                    if (stream.length() < MESSAGE_LENGTH1_LENGTH) {
+                                        app.writeFragmentMessage(FragmentDataTypes.FRAGMENT_DATA_MESSAGE_LENGTH1, stream, MESSAGE_LENGTH1_LENGTH);
+                                        break;
+                                    }
+
+                                    app.currMsgLen = stream.readUint32();
+                                }
+                            }
+                        }
+                        else {
+                            app.currMsgLen = msglen;
+                        }
+                    }
+
+                    if (app.fragmentStream != null && app.fragmentStream.length() >= app.currMsgLen) {
+                        msgHandler.handleMessage(app.fragmentStream);
+                        app.fragmentStream = null;
+                    }
+                    else if (stream.length() < app.currMsgLen && stream.length() > 0) {
+                        app.writeFragmentMessage(FragmentDataTypes.FRAGMENT_DATA_MESSAGE_BODY, stream, app.currMsgLen);
+                        break;
+                    }
+                    else {
+                        let wpos = stream.wpos;
+                        let rpos = stream.rpos + msglen;
+                        stream.wpos = rpos;
+                        msgHandler.handleMessage(stream);
+                        stream.wpos = wpos;
+                        stream.rpos = rpos;
+                    }
+
+                    app.currMsgID = 0;
+                    app.currMsgLen = 0;
+                    app.fragmentStream = null;
                 }
+                else {
+                    if (app.mergeFragmentMessage(stream))
+                        break;
+                }
+            }
+        }
+        writeFragmentMessage(FragmentDataType, stream: MemoryStream, datasize) {
+            let opsize = stream.length();
+
+            app.fragmentDatasRemain = datasize - opsize;
+            app.fragmentDatasFlag = FragmentDataType;
+            app.fragmentStream = stream;
+        }
+
+        mergeFragmentMessage(stream: MemoryStream) {
+            let opsize = stream.length();
+            if (opsize == 0)
+                return 0;
+
+            let fragmentStream = app.fragmentStream;
+            // console.assert(fragmentStream != null);
+
+            if (opsize >= app.fragmentDatasRemain) {
+                fragmentStream.append(stream, stream.rpos, app.fragmentDatasRemain);
+
+                switch (app.fragmentDatasFlag) {
+                    case FragmentDataTypes.FRAGMENT_DATA_MESSAGE_ID:
+                        app.currMsgID = fragmentStream.readUint16();
+                        app.fragmentStream = null;
+                        break;
+
+                    case FragmentDataTypes.FRAGMENT_DATA_MESSAGE_LENGTH:
+                        app.currMsgLen = fragmentStream.readUint16();
+                        app.fragmentStream = null;
+                        break;
+
+                    case FragmentDataTypes.FRAGMENT_DATA_MESSAGE_LENGTH1:
+                        app.currMsgLen = fragmentStream.readUint32();
+                        app.fragmentStream = null;
+                        break;
+
+                    case FragmentDataTypes.FRAGMENT_DATA_MESSAGE_BODY:
+                    default:
+                        break;
+                }
+
+                stream.rpos += app.fragmentDatasRemain;
+                app.fragmentDatasFlag = FragmentDataTypes.FRAGMENT_DATA_UNKNOW;
+                app.fragmentDatasRemain = 0;
+                return false;
+            }
+            else {
+                fragmentStream.append(stream, stream.rpos, opsize);
+                app.fragmentDatasRemain -= opsize;
+                stream.done();
+                return true;
             }
         }
         onclose() {
             INFO_MSG('connect close:' + app.currserver);
+
+            if (app.currconnect != app.currstate) return;
+
             app.resetSocket();
-            Event.fire("onDisconnected");
+            Event.fire(EventTypes.onDisconnected);
             //if(app.currserver != "loginapp")
             //	app.reset();
         }
@@ -2267,7 +2683,7 @@ namespace KBEngine {
                 return;
 
             let dateObject = new Date();
-            if ((dateObject.getTime() - app.lastTickTime) / 1000 > app.args.serverHeartbeatTick) {
+            if ((dateObject.getTime() - app.lastTickTime) / 1000 > app.args.serverHeartbeatTick / 2) {
                 // 如果心跳回调接收时间小于心跳发送时间，说明没有收到回调
                 // 此时应该通知客户端掉线了
                 if (app.lastTickCBTime < app.lastTickTime) {
@@ -2277,14 +2693,14 @@ namespace KBEngine {
 
                 if (app.currserver == "loginapp") {
                     if (messages['Loginapp_onClientActiveTick'] != undefined) {
-                        let bundle = new Bundle();
+                        let bundle = Bundle.createObject();
                         bundle.newMessage(messages['Loginapp_onClientActiveTick']);
                         bundle.send(app);
                     }
                 }
                 else {
                     if (messages['Baseapp_onClientActiveTick'] != undefined) {
-                        let bundle = new Bundle();
+                        let bundle = Bundle.createObject();
                         bundle.newMessage(messages['Baseapp_onClientActiveTick']);
                         bundle.send(app);
                     }
@@ -2296,8 +2712,8 @@ namespace KBEngine {
             app.updatePlayerToServer();
         }
         Client_onAppActiveTickCB() {
-            let dateObject = new Date();
-            app.lastTickCBTime = dateObject.getTime();
+            // let dateObject = new Date();
+            app.lastTickCBTime = Date.now() //dateObject.getTime();
         }
         serverErr(id) {
             let e = app.serverErrs[id];
@@ -2308,6 +2724,7 @@ namespace KBEngine {
 
             return e.name + " [" + e.descr + "]";
         }
+
         Client_onImportServerErrorsDescr(stream) {
             let size = stream.readUint16();
             while (size > 0) {
@@ -2323,15 +2740,22 @@ namespace KBEngine {
                 INFO_MSG("Client_onImportServerErrorsDescr: id=" + e.id + ", name=" + e.name + ", descr=" + e.descr);
             }
         }
+        Client_onImportClientSdk(stream: MemoryStream) {
+            let remainingFiles = stream.readInt32();
+            let fileName = stream.readString();
+            let fileSize = stream.readInt32();
+            let fileDatas = stream.readBlob()
+            Event.fire("onImportClientSDK", remainingFiles, fileName, fileSize, fileDatas);
+        }
         onOpenLoginapp_login() {
             INFO_MSG("KBEngineApp::onOpenLoginapp_login: successfully!");
-            Event.fire("onConnectionState", true);
+            Event.fire(EventTypes.onConnectionState, true);
 
             app.currserver = "loginapp";
             app.currstate = "login";
 
             if (!app.loginappMessageImported) {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages.Loginapp_importClientMessages);
                 bundle.send(app);
                 app.socket.onmessage = app.Client_onImportClientMessages;
@@ -2342,6 +2766,7 @@ namespace KBEngine {
                 app.onImportClientMessagesCompleted();
             }
         }
+
         onOpenLoginapp_createAccount() {
             Event.fire("onConnectionState", true);
             INFO_MSG("KBEngineApp::onOpenLoginapp_createAccount: successfully!");
@@ -2349,7 +2774,7 @@ namespace KBEngine {
             app.currstate = "createAccount";
 
             if (!app.loginappMessageImported) {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages.Loginapp_importClientMessages);
                 bundle.send(app);
                 app.socket.onmessage = app.Client_onImportClientMessages;
@@ -2369,7 +2794,7 @@ namespace KBEngine {
                 if (!app.serverErrorsDescrImported) {
                     INFO_MSG("KBEngine::onImportClientMessagesCompleted(): send importServerErrorsDescr!");
                     app.serverErrorsDescrImported = true;
-                    let bundle = new Bundle();
+                    let bundle = Bundle.createObject();
                     bundle.newMessage(messages['Loginapp_importServerErrorsDescr']);
                     bundle.send(app);
                 }
@@ -2388,7 +2813,7 @@ namespace KBEngine {
 
                 if (!app.entitydefImported) {
                     INFO_MSG("KBEngineApp::onImportClientMessagesCompleted: start importEntityDef ...");
-                    let bundle = new Bundle();
+                    let bundle = Bundle.createObject();
                     bundle.newMessage(messages.Baseapp_importClientEntityDef);
                     bundle.send(app);
                     Event.fire("Baseapp_importClientEntityDef");
@@ -2463,7 +2888,7 @@ namespace KBEngine {
         Client_onImportClientEntityDef(stream) {
             app.createDataTypeFromStreams(stream, true);
 
-            while (!stream.readEOF()) {
+            while (stream.length() > 0) {
                 let scriptmodule_name = stream.readString();
                 let scriptUtype = stream.readUint16();
                 let propertysize = stream.readUint16();
@@ -2488,12 +2913,7 @@ namespace KBEngine {
                 let self_base_methods = currModuleDefs["base_methods"];
                 let self_cell_methods = currModuleDefs["cell_methods"];
 
-                try {
-                    var Class = KBEngine['Entities'][scriptmodule_name];
-                }
-                catch (e) {
-                    let Class = undefined;
-                }
+                let Class = KBEngine['Entities'][scriptmodule_name];
 
                 while (propertysize > 0) {
                     propertysize--;
@@ -2630,72 +3050,97 @@ namespace KBEngine {
         Client_onVersionNotMatch(stream) {
             app.serverVersion = stream.readString();
             ERROR_MSG("Client_onVersionNotMatch: verInfo=" + app.clientVersion + " not match(server: " + app.serverVersion + ")");
-            Event.fire("onVersionNotMatch", app.clientVersion, app.serverVersion);
+            Event.fire(EventTypes.onVersionNotMatch, app.clientVersion, app.serverVersion);
         }
         Client_onScriptVersionNotMatch(stream) {
             app.serverScriptVersion = stream.readString();
             ERROR_MSG("Client_onScriptVersionNotMatch: verInfo=" + app.clientScriptVersion + " not match(server: " + app.serverScriptVersion + ")");
-            Event.fire("onScriptVersionNotMatch", app.clientScriptVersion, app.serverScriptVersion);
+            Event.fire(EventTypes.onScriptVersionNotMatch, app.clientScriptVersion, app.serverScriptVersion);
         }
         onImportEntityDefCompleted() {
             INFO_MSG("KBEngineApp::onImportEntityDefCompleted: successfully!");
             app.entitydefImported = true;
             app.login_baseapp(false);
         }
-        Client_onImportClientMessages(msg) {
-            let stream = new MemoryStream(msg.data);
-            let msgid = stream.readUint16();
+        importClientMessages(stream) {
+            while (app.currMsgCount > 0) {
+                app.currMsgCount--;
 
-            if (msgid == messages.onImportClientMessages.id) {
-                let msglen = stream.readUint16();
-                let msgcount = stream.readUint16();
+                let msgid = stream.readUint16();
+                let msglen = stream.readInt16();
+                let msgname = stream.readString();
+                let argtype = stream.readInt8();
+                let argsize = stream.readUint8();
+                let argstypes = new Array(argsize);
 
-                INFO_MSG("KBEngineApp::onImportClientMessages: start(" + msgcount + ") ...!");
+                for (let i = 0; i < argsize; i++) {
+                    argstypes[i] = stream.readUint8();
+                }
 
-                while (msgcount > 0) {
-                    msgcount--;
-
-                    msgid = stream.readUint16();
-                    msglen = stream.readInt16();
-                    let msgname = stream.readString();
-                    let argtype = stream.readInt8();
-                    let argsize = stream.readUint8();
-                    let argstypes = new Array(argsize);
-
-                    for (let i = 0; i < argsize; i++) {
-                        argstypes[i] = stream.readUint8();
-                    }
-
-                    let handler = null;
-                    let isClientMethod = msgname.indexOf("Client_") >= 0;
-                    if (isClientMethod) {
-                        handler = app[msgname];
-                        if (handler == null || handler == undefined) {
-                            WARNING_MSG("KBEngineApp::onImportClientMessages[" + app.currserver + "]: interface(" + msgname + "/" + msgid + ") no implement!");
-                            handler = null;
-                        }
-                        else {
-                            INFO_MSG("KBEngineApp::onImportClientMessages: import(" + msgname + ") successfully!");
-                        }
-                    }
-
-                    if (msgname.length > 0) {
-                        messages[msgname] = new Message(msgid, msgname, msglen, argtype, argstypes, handler);
-
-                        if (isClientMethod)
-                            clientmessages[msgid] = messages[msgname];
-                        else
-                            messages[app.currserver][msgid] = messages[msgname];
+                let handler = null;
+                let isClientMethod = msgname.indexOf("Client_") >= 0;
+                if (isClientMethod) {
+                    handler = app[msgname];
+                    if (handler == null || handler == undefined) {
+                        WARNING_MSG("KBEngineApp::onImportClientMessages[" + app.currserver + "]: interface(" + msgname + "/" + msgid + ") no implement!");
+                        handler = null;
                     }
                     else {
-                        messages[app.currserver][msgid] = new Message(msgid, msgname, msglen, argtype, argstypes, handler);
+                        INFO_MSG("KBEngineApp::onImportClientMessages: import(" + msgname + ") successfully!");
                     }
-                };
+                }
 
-                app.onImportClientMessagesCompleted();
+                if (msgname.length > 0) {
+                    messages[msgname] = new Message(msgid, msgname, msglen, argtype, argstypes, handler);
+
+                    if (isClientMethod)
+                        clientmessages[msgid] = messages[msgname];
+                    else
+                        messages[app.currserver][msgid] = messages[msgname];
+                }
+                else {
+                    messages[app.currserver][msgid] = new Message(msgid, msgname, msglen, argtype, argstypes, handler);
+                }
+            };
+
+            app.onImportClientMessagesCompleted();
+            app.currMsgID = 0;
+            app.currMsgLen = 0;
+            app.currMsgCount = 0;
+            app.fragmentStream = null;
+        }
+
+        Client_onImportClientMessages(msg) {
+            let stream = new MemoryStream(msg.data);
+            stream.wpos = msg.data.byteLength;
+
+            if (app.currMsgID == 0) {
+                app.currMsgID = stream.readUint16();
             }
-            else
-                ERROR_MSG("KBEngineApp::onmessage: not found msg(" + msgid + ")!");
+
+            if (app.currMsgID == messages.onImportClientMessages.id) {
+                if (app.currMsgLen == 0) {
+                    app.currMsgLen = stream.readUint16();
+                    app.currMsgCount = stream.readUint16();
+                }
+
+                if (stream.length() + 2 < app.currMsgLen && app.fragmentStream == null) {
+                    app.writeFragmentMessage(FragmentDataTypes.FRAGMENT_DATA_MESSAGE_BODY, stream, app.currMsgLen - 2);
+                }
+                else if (app.fragmentStream != null) {
+                    app.mergeFragmentMessage(stream);
+
+                    if (app.fragmentStream.length() + 2 >= app.currMsgLen) {
+                        app.importClientMessages(app.fragmentStream);
+                    }
+                }
+                else {
+                    app.importClientMessages(stream);
+                }
+            }
+            else {
+                ERROR_MSG("KBEngineApp::onmessage: not found msg(" + app.currMsgID + ")!");
+            }
         }
         createAccount(username, password, datas) {
             app.reset();
@@ -2708,11 +3153,12 @@ namespace KBEngine {
         createAccount_loginapp(noconnect) {
             if (noconnect) {
                 INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + app.args.ip + ":" + app.args.port + "!");
+                app.currconnect = "loginapp";
                 app.connect(app.args.ip, app.args.port);
                 app.socket.onopen = app.onOpenLoginapp_createAccount;
             }
             else {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages['Loginapp_reqCreateAccount']);
                 bundle.writeString(app.username);
                 bundle.writeString(app.password);
@@ -2721,7 +3167,7 @@ namespace KBEngine {
             }
         }
         bindAccountEmail(emailAddress) {
-            let bundle = new Bundle();
+            let bundle = Bundle.createObject();
             bundle.newMessage(messages['Baseapp_reqAccountBindEmail']);
             bundle.writeInt32(app.entity_id);
             bundle.writeString(app.password);
@@ -2729,11 +3175,18 @@ namespace KBEngine {
             bundle.send(app);
         }
         newPassword(old_password, new_password) {
-            let bundle = new Bundle();
+            let bundle = Bundle.createObject();
             bundle.newMessage(messages['Baseapp_reqAccountNewPassword']);
             bundle.writeInt32(app.entity_id);
             bundle.writeString(old_password);
             bundle.writeString(new_password);
+            bundle.send(app);
+        }
+        logout() {
+            let bundle = new Bundle();
+            bundle.newMessage(messages['Baseapp_logoutBaseapp']);
+            bundle.writeUint64(app.entity_uuid);
+            bundle.writeInt32(app.entity_id);
             bundle.send(app);
         }
         login(username, password, datas) {
@@ -2747,11 +3200,12 @@ namespace KBEngine {
         login_loginapp(noconnect) {
             if (noconnect) {
                 INFO_MSG("KBEngineApp::login_loginapp: start connect to ws://" + app.args.ip + ":" + app.args.port + "!");
+                app.currconnect = "loginapp";
                 app.connect(app.args.ip, app.args.port);
                 app.socket.onopen = app.onOpenLoginapp_login;
             }
             else {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages['Loginapp_login']);
                 bundle.writeInt8(app.args.clientType); // clientType
                 bundle.writeBlob(app.clientdatas);
@@ -2766,7 +3220,7 @@ namespace KBEngine {
             app.currstate = "resetpassword";
 
             if (!app.loginappMessageImported) {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages.Loginapp_importClientMessages);
                 bundle.send(app);
                 app.socket.onmessage = app.Client_onImportClientMessages;
@@ -2784,11 +3238,12 @@ namespace KBEngine {
         resetpassword_loginapp(noconnect) {
             if (noconnect) {
                 INFO_MSG("KBEngineApp::createAccount_loginapp: start connect to ws://" + app.args.ip + ":" + app.args.port + "!");
+                app.currconnect = "loginapp";
                 app.connect(app.args.ip, app.args.port);
                 app.socket.onopen = app.onOpenLoginapp_resetpassword;
             }
             else {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages['Loginapp_reqAccountResetPassword']);
                 bundle.writeString(app.username);
                 bundle.send(app);
@@ -2799,7 +3254,7 @@ namespace KBEngine {
             app.currserver = "baseapp";
 
             if (!app.baseappMessageImported) {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages.Baseapp_importClientMessages);
                 bundle.send(app);
                 app.socket.onmessage = app.Client_onImportClientMessages;
@@ -2809,17 +3264,19 @@ namespace KBEngine {
                 app.onImportClientMessagesCompleted();
             }
         }
+
         login_baseapp(noconnect) {
             if (noconnect) {
                 Event.fire("onLoginBaseapp");
                 INFO_MSG("KBEngineApp::login_baseapp: start connect to ws://" + app.baseappIp + ":" + app.baseappPort + "!");
+                app.currconnect = "baseapp";
                 app.connect(app.baseappIp, app.baseappPort);
 
                 if (app.socket != undefined && app.socket != null)
                     app.socket.onopen = app.onOpenBaseapp;
             }
             else {
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages['Baseapp_loginBaseapp']);
                 bundle.writeString(app.username);
                 bundle.writeString(app.password);
@@ -2827,12 +3284,16 @@ namespace KBEngine {
             }
         }
         reloginBaseapp() {
+            app.lastTickCBTime = app.lastTickTime = Date.now();
+
             if (app.socket != undefined && app.socket != null)
                 return;
 
             app.resetSocket();
-            Event.fire("onReloginBaseapp");
+            Event.fire(EventTypes.onReloginBaseapp);
+
             INFO_MSG("KBEngineApp::reloginBaseapp: start connect to ws://" + app.baseappIp + ":" + app.baseappPort + "!");
+            app.currconnect = "baseapp";
             app.connect(app.baseappIp, app.baseappPort);
 
             if (app.socket != undefined && app.socket != null)
@@ -2842,7 +3303,7 @@ namespace KBEngine {
             INFO_MSG("KBEngineApp::onReOpenBaseapp: successfully!");
             app.currserver = "baseapp";
 
-            let bundle = new Bundle();
+            let bundle = Bundle.createObject();
             bundle.newMessage(messages['Baseapp_reloginBaseapp']);
             bundle.writeString(app.username);
             bundle.writeString(app.password);
@@ -2890,16 +3351,16 @@ namespace KBEngine {
         }
         Client_onLoginBaseappFailed(failedcode) {
             ERROR_MSG("KBEngineApp::Client_onLoginBaseappFailed: failedcode(" + app.serverErrs[failedcode].name + ")!");
-            Event.fire("onLoginBaseappFailed", failedcode);
+            Event.fire(EventTypes.onLoginBaseappFailed, failedcode);
         }
         Client_onReloginBaseappFailed(failedcode) {
             ERROR_MSG("KBEngineApp::Client_onReloginBaseappFailed: failedcode(" + app.serverErrs[failedcode].name + ")!");
-            Event.fire("onReloginBaseappFailed", failedcode);
+            Event.fire(EventTypes.onReloginBaseappFailed, failedcode);
         }
         Client_onReloginBaseappSuccessfully(stream) {
             app.entity_uuid = stream.readUint64();
             DEBUG_MSG("KBEngineApp::Client_onReloginBaseappSuccessfully: " + app.username);
-            Event.fire("onReloginBaseappSuccessfully");
+            Event.fire(EventTypes.onReloginBaseappSuccessfully);
         }
         entityclass = {};
         getentityclass(entityType) {
@@ -3250,7 +3711,7 @@ namespace KBEngine {
         }
         Client_onKicked(failedcode) {
             ERROR_MSG("KBEngineApp::Client_onKicked: failedcode(" + app.serverErrs[failedcode].name + ")!");
-            Event.fire("onKicked", failedcode);
+            Event.fire(EventTypes.onKicked, failedcode);
         }
         Client_onCreateAccountResult(stream) {
             let retcode = stream.readUint16();
@@ -3295,7 +3756,7 @@ namespace KBEngine {
 
             try {
                 entity.onControlled(isCont);
-                Event.fire("onControlled", entity, isCont);
+                Event.fire(EventTypes.onControlled, entity, isCont);
             }
             catch (e) {
                 ERROR_MSG("KBEngine::Client_onControlEntity: entity id = '" + eid + "', is controlled = '" + isCont + "', error = '" + e + "'");
@@ -3315,7 +3776,7 @@ namespace KBEngine {
                 player.entityLastLocalDir.y = player.direction.y;
                 player.entityLastLocalDir.z = player.direction.z;
 
-                let bundle = new Bundle();
+                let bundle = Bundle.createObject();
                 bundle.newMessage(messages['Baseapp_onUpdateDataFromClient']);
                 bundle.writeFloat(player.position.x);
                 bundle.writeFloat(player.position.y);
@@ -3341,7 +3802,7 @@ namespace KBEngine {
                     entity.entityLastLocalPos = position;
                     entity.entityLastLocalDir = direction;
 
-                    let bundle = new Bundle();
+                    let bundle = Bundle.createObject();
                     bundle.newMessage(messages['Baseapp_onUpdateDataFromClientForControlledEntity']);
                     bundle.writeInt32(entity.id);
                     bundle.writeFloat(position.x);
@@ -3362,7 +3823,7 @@ namespace KBEngine {
 
             app.spaceID = spaceID;
             app.spaceResPath = respath;
-            Event.fire("addSpaceGeometryMapping", respath);
+            Event.fire(EventTypes.addSpaceGeometryMapping, respath);
         }
         clearSpace(isAll) {
             app.entityIDAliasIDList = [];
@@ -3480,141 +3941,380 @@ namespace KBEngine {
         Client_onUpdateData_ypr(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let y = stream.readInt8();
-            let p = stream.readInt8();
-            let r = stream.readInt8();
+            let y = stream.readFloat();
+            let p = stream.readFloat();
+            let r = stream.readFloat();
 
             app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, p, r, -1);
         }
         Client_onUpdateData_yp(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let y = stream.readInt8();
-            let p = stream.readInt8();
+            let y = stream.readFloat();
+            let p = stream.readFloat();
 
             app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, p, KBE_FLT_MAX, -1);
         }
         Client_onUpdateData_yr(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let y = stream.readInt8();
-            let r = stream.readInt8();
+            let y = stream.readFloat();
+            let r = stream.readFloat();
 
             app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, KBE_FLT_MAX, r, -1);
         }
         Client_onUpdateData_pr(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let p = stream.readInt8();
-            let r = stream.readInt8();
+            let p = stream.readFloat();
+            let r = stream.readFloat();
 
             app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, p, r, -1);
         }
         Client_onUpdateData_y(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let y = stream.readInt8();
+            let y = stream.readFloat();
 
             app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, KBE_FLT_MAX, KBE_FLT_MAX, -1);
         }
         Client_onUpdateData_p(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let p = stream.readInt8();
+            let p = stream.readFloat();
 
             app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, p, KBE_FLT_MAX, -1);
         }
         Client_onUpdateData_r(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let r = stream.readInt8();
+            let r = stream.readFloat();
 
             app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, r, -1);
         }
         Client_onUpdateData_xz(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let xz = stream.readPackXZ();
+            // let x = stream.readFloat(); 		let z = stream.readFloat();
+            let x = stream.readFloat();
+            let z = stream.readFloat();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, 1);
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, 1);
         }
         Client_onUpdateData_xz_ypr(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let xz = stream.readPackXZ();
+            let x = stream.readFloat();
+            let z = stream.readFloat();
 
-            let y = stream.readInt8();
-            let p = stream.readInt8();
-            let r = stream.readInt8();
+            let y = stream.readFloat();
+            let p = stream.readFloat();
+            let r = stream.readFloat();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, p, r, 1);
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, y, p, r, 1);
         }
         Client_onUpdateData_xz_yp(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let xz = stream.readPackXZ();
+            let x = stream.readFloat();
+            let z = stream.readFloat();
 
-            let y = stream.readInt8();
-            let p = stream.readInt8();
+            let y = stream.readFloat();
+            let p = stream.readFloat();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, p, KBE_FLT_MAX, 1);
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, y, p, KBE_FLT_MAX, 1);
         }
         Client_onUpdateData_xz_yr(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
-            let xz = stream.readPackXZ();
+            let x = stream.readFloat();
+            let z = stream.readFloat();
 
-            let y = stream.readInt8();
-            let r = stream.readInt8();
+            let y = stream.readFloat();
+            let r = stream.readFloat();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, KBE_FLT_MAX, r, 1);
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, y, KBE_FLT_MAX, r, 1);
         }
         Client_onUpdateData_xz_pr(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
+            let x = stream.readFloat();
+            let z = stream.readFloat();
+
+            let p = stream.readFloat();
+            let r = stream.readFloat();
+
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, KBE_FLT_MAX, p, r, 1);
+        }
+        Client_onUpdateData_xz_y(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat();
+            let z = stream.readFloat();
+            let y = stream.readFloat();
+
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, y, KBE_FLT_MAX, KBE_FLT_MAX, 1);
+        }
+        Client_onUpdateData_xz_p(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat();
+            let z = stream.readFloat();
+            let p = stream.readInt8();
+
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, KBE_FLT_MAX, p, KBE_FLT_MAX, 1);
+        }
+        Client_onUpdateData_xz_r(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat();
+            let z = stream.readFloat();
+
+            let r = stream.readInt8();
+
+            app._updateVolatileData(eid, x, KBE_FLT_MAX, z, KBE_FLT_MAX, KBE_FLT_MAX, r, 1);
+        }
+        Client_onUpdateData_xyz(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat();
+            let y = stream.readFloat();
+            let z = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, 0);
+        }
+        Client_onUpdateData_xyz_ypr(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat();
+            let y = stream.readFloat();
+            let z = stream.readFloat();
+
+            let yaw = stream.readFloat();
+            let p = stream.readFloat();
+            let r = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, yaw, p, r, 0);
+        }
+        Client_onUpdateData_xyz_yp(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat(); let z = stream.readFloat();
+            let y = stream.readFloat();
+
+            let yaw = stream.readFloat();
+            let p = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, yaw, p, KBE_FLT_MAX, 0);
+        }
+        Client_onUpdateData_xyz_yr(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat(); let z = stream.readFloat();
+            let y = stream.readFloat();
+
+            let yaw = stream.readFloat();
+            let r = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, yaw, KBE_FLT_MAX, r, 0);
+        }
+        Client_onUpdateData_xyz_pr(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat(); let z = stream.readFloat();
+            let y = stream.readFloat();
+
+            let p = stream.readFloat();
+            let r = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, KBE_FLT_MAX, p, r, 0);
+        }
+        Client_onUpdateData_xyz_y(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat(); let z = stream.readFloat();
+            let y = stream.readFloat();
+
+            let yaw = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, yaw, KBE_FLT_MAX, KBE_FLT_MAX, 0);
+        }
+        Client_onUpdateData_xyz_p(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat(); let z = stream.readFloat();
+            let y = stream.readFloat();
+
+            let p = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, KBE_FLT_MAX, p, KBE_FLT_MAX, 0);
+        }
+        Client_onUpdateData_xyz_r(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let x = stream.readFloat(); let z = stream.readFloat();
+            let y = stream.readFloat();
+            //todo 这个是自己加的，如果错误再修改
+            let r = stream.readFloat();
+
+            // let p = stream.readFloat();
+
+            app._updateVolatileData(eid, x, y, z, r, KBE_FLT_MAX, KBE_FLT_MAX, 0);
+        }
+        Client_onUpdateData_ypr_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let y = stream.readInt8();
+            let p = stream.readInt8();
+            let r = stream.readInt8();
+
+            app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, p, r, -1, true);
+        }
+
+        Client_onUpdateData_yp_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let y = stream.readInt8();
+            let p = stream.readInt8();
+
+            app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, p, KBE_FLT_MAX, -1, true);
+        }
+
+        Client_onUpdateData_yr_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let y = stream.readInt8();
+            let r = stream.readInt8();
+
+            app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, KBE_FLT_MAX, r, -1, true);
+        }
+
+        Client_onUpdateData_pr_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let p = stream.readInt8();
+            let r = stream.readInt8();
+
+            app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, p, r, -1, true);
+        }
+
+        Client_onUpdateData_y_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let y = stream.readInt8();
+
+            app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, y, KBE_FLT_MAX, KBE_FLT_MAX, -1, true);
+        }
+
+        Client_onUpdateData_p_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let p = stream.readInt8();
+
+            app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, p, KBE_FLT_MAX, -1, true);
+        }
+
+        Client_onUpdateData_r_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let r = stream.readInt8();
+
+            app._updateVolatileData(eid, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, r, -1, true);
+        }
+
+        Client_onUpdateData_xz_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let xz = stream.readPackXZ();
+
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, 1, true);
+        }
+
+        Client_onUpdateData_xz_ypr_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let xz = stream.readPackXZ();
+
+            let y = stream.readInt8();
+            let p = stream.readInt8();
+            let r = stream.readInt8();
+
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, p, r, 1, true);
+        }
+
+        Client_onUpdateData_xz_yp_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let xz = stream.readPackXZ();
+
+            let y = stream.readInt8();
+            let p = stream.readInt8();
+
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, p, KBE_FLT_MAX, 1, true);
+        }
+
+        Client_onUpdateData_xz_yr_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
+            let xz = stream.readPackXZ();
+
+            let y = stream.readInt8();
+            let r = stream.readInt8();
+
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, KBE_FLT_MAX, r, 1, true);
+        }
+
+        Client_onUpdateData_xz_pr_optimized(stream) {
+            let eid = app.getViewEntityIDFromStream(stream);
+
             let xz = stream.readPackXZ();
 
             let p = stream.readInt8();
             let r = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, p, r, 1);
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, p, r, 1, true);
         }
-        Client_onUpdateData_xz_y(stream) {
+
+        Client_onUpdateData_xz_y_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
 
             let y = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, KBE_FLT_MAX, KBE_FLT_MAX, 1);
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], y, KBE_FLT_MAX, KBE_FLT_MAX, 1, true);
         }
-        Client_onUpdateData_xz_p(stream) {
+
+        Client_onUpdateData_xz_p_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
 
             let p = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, p, KBE_FLT_MAX, 1);
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, p, KBE_FLT_MAX, 1, true);
         }
-        Client_onUpdateData_xz_r(stream) {
+
+        Client_onUpdateData_xz_r_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
 
             let r = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, KBE_FLT_MAX, r, 1);
+            app._updateVolatileData(eid, xz[0], KBE_FLT_MAX, xz[1], KBE_FLT_MAX, KBE_FLT_MAX, r, 1, true);
         }
-        Client_onUpdateData_xyz(stream) {
+
+        Client_onUpdateData_xyz_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
             let y = stream.readPackY();
 
-            app._updateVolatileData(eid, xz[0], y, xz[1], KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], KBE_FLT_MAX, KBE_FLT_MAX, KBE_FLT_MAX, 0, true);
         }
-        Client_onUpdateData_xyz_ypr(stream) {
+
+        Client_onUpdateData_xyz_ypr_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
@@ -3624,9 +4324,10 @@ namespace KBEngine {
             let p = stream.readInt8();
             let r = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, r, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, r, 0, true);
         }
-        Client_onUpdateData_xyz_yp(stream) {
+
+        Client_onUpdateData_xyz_yp_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
@@ -3635,9 +4336,10 @@ namespace KBEngine {
             let yaw = stream.readInt8();
             let p = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, KBE_FLT_MAX, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, p, KBE_FLT_MAX, 0, true);
         }
-        Client_onUpdateData_xyz_yr(stream) {
+
+        Client_onUpdateData_xyz_yr_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
@@ -3646,9 +4348,10 @@ namespace KBEngine {
             let yaw = stream.readInt8();
             let r = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBE_FLT_MAX, r, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBE_FLT_MAX, r, 0, true);
         }
-        Client_onUpdateData_xyz_pr(stream) {
+
+        Client_onUpdateData_xyz_pr_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
@@ -3657,11 +4360,10 @@ namespace KBEngine {
             let p = stream.readInt8();
             let r = stream.readInt8();
 
-            ERROR_MSG('调用错误方法，无法找到x,z');
-            //todo 这个是手动注释，如果错误再修改
-            // app._updateVolatileData(eid, x, y, z, KBE_FLT_MAX, p, r, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], KBE_FLT_MAX, p, r, 0, true);
         }
-        Client_onUpdateData_xyz_y(stream) {
+
+        Client_onUpdateData_xyz_y_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
@@ -3669,9 +4371,10 @@ namespace KBEngine {
 
             let yaw = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBE_FLT_MAX, KBE_FLT_MAX, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], yaw, KBE_FLT_MAX, KBE_FLT_MAX, 0, true);
         }
-        Client_onUpdateData_xyz_p(stream) {
+
+        Client_onUpdateData_xyz_p_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
@@ -3679,21 +4382,20 @@ namespace KBEngine {
 
             let p = stream.readInt8();
 
-            app._updateVolatileData(eid, xz[0], y, xz[1], KBE_FLT_MAX, p, KBE_FLT_MAX, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], KBE_FLT_MAX, p, KBE_FLT_MAX, 0, true);
         }
-        Client_onUpdateData_xyz_r(stream) {
+
+        Client_onUpdateData_xyz_r_optimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
 
             let xz = stream.readPackXZ();
             let y = stream.readPackY();
-            //todo 这个是自己加的，如果错误再修改
+
             let r = stream.readInt8();
 
-            let p = stream.readInt8();
-
-            app._updateVolatileData(eid, xz[0], y, xz[1], r, KBE_FLT_MAX, KBE_FLT_MAX, 0);
+            app._updateVolatileData(eid, xz[0], y, xz[1], r, KBE_FLT_MAX, KBE_FLT_MAX, 0, true);
         }
-        _updateVolatileData(entityID, x, y, z, yaw, pitch, roll, isOnGround) {
+        _updateVolatileData(entityID, x, y, z, yaw, pitch, roll, isOnGround, isOptimized: boolean = false) {
             let entity = app.entities[entityID];
             if (entity == undefined) {
                 // 如果为0且客户端上一步是重登陆或者重连操作并且服务端entity在断线期间一直处于在线状态
@@ -3740,10 +4442,16 @@ namespace KBEngine {
             if (z == KBE_FLT_MAX) z = 0.0;
 
             if (positionChanged) {
-                entity.position.x = x + app.entityServerPos.x;
-                entity.position.y = y + app.entityServerPos.y;
-                entity.position.z = z + app.entityServerPos.z;
-
+                if (isOptimized) {
+                    entity.position.x = x + KBEngine.app.entityServerPos.x;
+                    entity.position.y = y + KBEngine.app.entityServerPos.y;
+                    entity.position.z = z + KBEngine.app.entityServerPos.z;
+                }
+                else {
+                    entity.position.x = x;
+                    entity.position.y = y;
+                    entity.position.z = z;
+                }
                 done = true;
                 Event.fire("updatePosition", entity);
             }
@@ -3752,15 +4460,15 @@ namespace KBEngine {
                 entity.onUpdateVolatileData();
         }
         Client_onStreamDataStarted(id, datasize, descr) {
-            Event.fire("onStreamDataStarted", id, datasize, descr);
+            Event.fire(EventTypes.onStreamDataStarted, id, datasize, descr);
         }
         Client_onStreamDataRecv(stream) {
             let id = stream.readUint16();
             let data = stream.readBlob();
-            Event.fire("onStreamDataRecv", id, data);
+            Event.fire(EventTypes.onStreamDataRecv, id, data);
         }
         Client_onStreamDataCompleted(id) {
-            Event.fire("onStreamDataCompleted", id);
+            Event.fire(EventTypes.onStreamDataCompleted, id);
         }
         Client_onReqAccountResetPasswordCB(failedcode) {
             if (failedcode != 0) {
@@ -3793,16 +4501,18 @@ namespace KBEngine {
         descr = "";
         id = 0;
     }
+    export const FragmentDataTypes = {
+        FRAGMENT_DATA_UNKNOW: 0,
+        FRAGMENT_DATA_MESSAGE_ID: 1,
+        FRAGMENT_DATA_MESSAGE_LENGTH: 2,
+        FRAGMENT_DATA_MESSAGE_LENGTH1: 3,
+        FRAGMENT_DATA_MESSAGE_BODY: 4
+    };
     export let app: KBEngineApp;
     let idInterval;
     export function create(args: KBEngineArgs) {
         if (app != undefined)
             return;
-
-        if (args.constructor != KBEngineArgs) {
-            ERROR_MSG("create(): args(" + args + ") error! not is KBEngineArgs");
-            return;
-        }
 
         new KBEngineApp(args);
 
@@ -3820,5 +4530,6 @@ namespace KBEngine {
         app.uninstallEvents();
         app.reset();
         app = undefined;
+        Event.clear();
     }
-}   
+}

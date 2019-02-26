@@ -4,10 +4,14 @@
 		"noImplicitAny": false,
 		"sourceMap": false,
 		"declaration": true,
+		"experimentalDecorators": true,
 		"outFile": "bin/kbengine.js"
 	},
 	"include": [
 		"libs",
 		"src"
+	],
+	"exclude": [
+		"bin"
 	]
 }

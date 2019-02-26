@@ -1,16 +1,21 @@
 /**
- * KBEngine的html5客户端扩展ts版   1.x版本
+ * KBEngine的html5客户端扩展ts版   2.x版本
  * cocos creator 环境下使用方法
- * 将bin/kbengine.js导入为插件，将bin/kbengine.d.ts放在项目根目录下，即可
+ * 将bin/js导入为插件，将bin/d.ts放在项目根目录下，即可
  *
  * todo 未完成内容
  * 1、强类型匹配
  * 2、代码注释
  *
  * 注：（下面的是重点）
- *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要在脚本下方加入 KBEngine['Entities'] = KBEngine['Entities'] || {};KBEngine['Entities']['你的实体类名']=你的实体类名;将声明提升至全局
- *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends KBEngine.Entity{};
+ *      1、实体声明的命名空间为Entities,与官方的KBEngine不同
+ *      2、cocos creator环境下，实体类声明完成后，需要类声明时加上@registerEntity('你的类名'),用于将变量提升至全局,加入下方一段用于代码提示
+ *          declare global{
+                namespace Entities{
+                    class 类名 extends 类{}
+                }
+            }
+ *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends Entity{};
  *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
 declare namespace KBEngine {
@@ -21,6 +26,8 @@ declare namespace KBEngine {
     const PACKET_MAX_SIZE_UDP = 1472;
     const MESSAGE_ID_LENGTH = 2;
     const MESSAGE_LENGTH_LENGTH = 2;
+    const MESSAGE_LENGTH1_LENGTH = 4;
+    const MESSAGE_MAX_SIZE = 65535;
     const CLIENT_NO_FLOAT = 0;
     const KBE_FLT_MAX = 3.402823466e+38;
 }
@@ -52,9 +59,15 @@ declare namespace KBEngine {
 }
 declare namespace KBEngine {
     class EventInfo {
-        constructor(classinst: any, callbackfn: any);
         classinst: any;
         callbackfn: any;
+        constructor(classinst: any, callbackfn: any);
+    }
+    class FiredEvent {
+        evtName: any;
+        evtInfo: any;
+        ars: any;
+        constructor(evtName: any, evtInfo: any, ars: any);
     }
     interface IEvents {
         [evtName: string]: EventInfo[];
@@ -62,15 +75,32 @@ declare namespace KBEngine {
     class Events {
         constructor();
         _events: IEvents;
+        _isPause: boolean;
+        _firedEvents: FiredEvent[];
         register(evtName: string, classinst: any, strCallback: string): void;
+        deregisterAll(classinst: any): void;
         deregister(evtName: string, classinst: any): void;
+        removeAllFiredEvent(classinst: any): void;
+        removeFiredEvent(evtName: string, classinst: any): void;
         fire(evtName: string, ...args: any[]): void;
+        pasue(): void;
+        resume(): void;
+        clear(): void;
     }
     const Event: Events;
 }
 declare namespace KBEngine {
+    class PackFloatXType {
+        _unionData: ArrayBuffer;
+        fv: Float32Array;
+        uv: Uint32Array;
+        iv: Int32Array;
+    }
+    const _xPackData: PackFloatXType;
+    const _yPackData: PackFloatXType;
+    const _zPackData: PackFloatXType;
     class MemoryStream {
-        constructor(size_or_buffer: any);
+        constructor(size_or_buffer: number | ArrayBuffer);
         buffer: ArrayBuffer;
         rpos: number;
         wpos: number;
@@ -96,19 +126,25 @@ declare namespace KBEngine {
         writeUint8(v: any): void;
         writeUint16(v: any): void;
         writeUint32(v: any): void;
-        writeUint64(v: any): void;
+        writeUint64(v: UINT64): void;
         writeFloat(v: any): void;
         writeDouble(v: any): void;
         writeBlob(v: any): void;
         writeString(v: any): void;
+        append(stream: MemoryStream, offset: number, size: number): void;
         readSkip(v: any): void;
         space(): number;
         length(): number;
         readEOF(): boolean;
         done(): void;
-        getbuffer(v: any): ArrayBuffer;
+        getbuffer(): ArrayBuffer;
+        setbuffer(buffer: ArrayBuffer): void;
+        size(): number;
+        clear(): void;
+        reclaimObject(): void;
     }
     module MemoryStream {
+        const _objects: MemoryStream[];
         class PackFloatXType {
             _unionData: ArrayBuffer;
             fv: Float32Array;
@@ -116,12 +152,15 @@ declare namespace KBEngine {
             iv: Int32Array;
             constructor();
         }
+        function createObject(): MemoryStream;
     }
 }
 declare namespace KBEngine {
     class Bundle {
+        static _objects: Bundle[];
+        static createObject(): Bundle;
         constructor();
-        memorystreams: Array<any>;
+        memorystreams: Array<MemoryStream>;
         stream: MemoryStream;
         numMessage: number;
         messageLengthBuffer: Uint8Array;
@@ -144,6 +183,8 @@ declare namespace KBEngine {
         writeDouble(v: any): void;
         writeString(v: any): void;
         writeBlob(v: any): void;
+        clear(): void;
+        reclaimObject(): void;
     }
     const reader: MemoryStream;
     interface IDataType2Id {
@@ -154,13 +195,13 @@ declare namespace KBEngine {
     function bindWriter(writer: any, argType: number): any;
     function bindReader(argType: number): () => any;
     class Message {
-        constructor(id: any, name: any, length: any, argstype: any, args: any, handler: any);
         id: any;
         name: any;
         length: any;
         argsType: any;
         args: any;
         handler: any;
+        constructor(id: any, name: any, length: any, argsType: any, args: any, handler: any);
         createFromStream(msgstream: any): any;
         handleMessage(msgstream: any): void;
     }
@@ -177,9 +218,9 @@ declare namespace KBEngine {
 }
 declare namespace KBEngine {
     class Vector2 {
-        constructor(x: number, y: number);
         x: number;
         y: number;
+        constructor(x: number, y: number);
         distance(pos: Vector2): number;
         add(vec2: Vector2): this;
         sub(vec2: Vector2): this;
@@ -188,10 +229,10 @@ declare namespace KBEngine {
         neg(): this;
     }
     class Vector3 {
-        constructor(x: number, y: number, z: number);
         x: number;
         y: number;
         z: number;
+        constructor(x: number, y: number, z: number);
         distance(pos: Vector3): number;
         add(vec3: Vector3): this;
         sub(vec3: Vector3): this;
@@ -199,15 +240,12 @@ declare namespace KBEngine {
         div(num: number): this;
         neg(): this;
     }
-    /**
-     * todo 这个类的第四个参数的没搞清楚，所有如果没有必要，不要用这个东西
-     */
     class Vector4 {
-        constructor(x: number, y: number, z: number, w: number);
         x: number;
         y: number;
         z: number;
         w: number;
+        constructor(x: number, y: number, z: number, w: number);
         distance(pos: Vector4): number;
         add(vec4: Vector4): this;
         sub(vec4: Vector4): this;
@@ -216,12 +254,11 @@ declare namespace KBEngine {
         neg(): this;
     }
     function clampf(value: any, min_inclusive: any, max_inclusive: any): any;
-    function int82angle(angle: any, half: any): number;
+    function int82angle(angle: number, half: boolean): number;
     function angle2int8(v: number, half: boolean): number;
 }
 declare namespace KBEngine {
-    namespace Entities {
-    }
+    module Entities { }
     class Entity {
         constructor();
         id: number;
@@ -256,6 +293,7 @@ declare namespace KBEngine {
         onUpdateVolatileData(): void;
         set_direction(old: any): void;
     }
+    function registerEntity(name: string): (ctor: new () => Entity) => void;
 }
 declare namespace KBEngine {
     const ENTITYCALL_TYPE_CELL = 0;
@@ -437,8 +475,6 @@ declare namespace KBEngine {
         const VECTOR3: DATATYPE_VECTOR3;
         const VECTOR4: DATATYPE_VECTOR4;
         const PYTHON: DATATYPE_PYTHON;
-        const PY_DICT: DATATYPE_PYTHON;
-        const PY_LIST: DATATYPE_PYTHON;
         const UNICODE: DATATYPE_UNICODE;
         const ENTITYCALL: DATATYPE_ENTITYCALL;
         const ENTITY_COMPONENT: DATATYPE_ENTITY_COMPONENT;
@@ -451,17 +487,53 @@ declare namespace KBEngine {
         port: number;
         updateHZ: number;
         serverHeartbeatTick: number;
-        protocol: string;
+        isWss: boolean;
+        readonly protocol: string;
         forceBasePort: number;
         clientType: number;
         isOnInitCallPropertysSetMethods: boolean;
     }
+    const EventTypes: {
+        createAccount: string;
+        login: string;
+        logout: string;
+        reloginBaseapp: string;
+        bindAccountEmail: string;
+        newPassword: string;
+        onKicked: string;
+        onDisconnected: string;
+        onConnectionState: string;
+        onCreateAccountResult: string;
+        onVersionNotMatch: string;
+        onScriptVersionNotMatch: string;
+        onLoginFailed: string;
+        onLoginBaseapp: string;
+        onLoginBaseappFailed: string;
+        onReloginBaseapp: string;
+        onReloginBaseappSuccessfully: string;
+        onReloginBaseappFailed: string;
+        onEnterWorld: string;
+        onLeaveWorld: string;
+        onEnterSpace: string;
+        onLeaveSpace: string;
+        set_position: string;
+        set_direction: string;
+        updatePosition: string;
+        addSpaceGeometryMapping: string;
+        onSetSpaceData: string;
+        onDelSpaceData: string;
+        onControlled: string;
+        onLoseControlledEntity: string;
+        onStreamDataStarted: string;
+        onStreamDataRecv: string;
+        onStreamDataCompleted: string;
+    };
 }
 declare namespace KBEngine {
     const moduledefs: {};
     class KBEngineApp {
-        constructor(args: KBEngineArgs);
         args: KBEngineArgs;
+        constructor(args: KBEngineArgs);
         baseappIp: string;
         username: string;
         password: string;
@@ -478,9 +550,16 @@ declare namespace KBEngine {
         baseappIP: string;
         baseappPort: number;
         baseappUdpPort: number;
+        currMsgID: number;
+        currMsgCount: number;
+        currMsgLen: number;
+        fragmentStream: any;
+        fragmentDatasFlag: number;
+        fragmentDatasRemain: number;
         socket: any;
         currserver: string;
         currstate: string;
+        currconnect: string;
         serverdatas: string;
         serverVersion: string;
         serverScriptVersion: string;
@@ -502,6 +581,7 @@ declare namespace KBEngine {
         lastTickTime: number;
         lastTickCBTime: number;
         component: any;
+        msgStream: MemoryStream;
         resetSocket(): void;
         reset(): void;
         installEvents(): void;
@@ -515,6 +595,8 @@ declare namespace KBEngine {
         onerror_before_onopen(evt: any): void;
         onerror_after_onopen(evt: any): void;
         onmessage(msg: any): void;
+        writeFragmentMessage(FragmentDataType: any, stream: MemoryStream, datasize: any): void;
+        mergeFragmentMessage(stream: MemoryStream): boolean | 0;
         onclose(): void;
         send(msg: any): void;
         close(): void;
@@ -522,6 +604,7 @@ declare namespace KBEngine {
         Client_onAppActiveTickCB(): void;
         serverErr(id: any): string;
         Client_onImportServerErrorsDescr(stream: any): void;
+        Client_onImportClientSdk(stream: MemoryStream): void;
         onOpenLoginapp_login(): void;
         onOpenLoginapp_createAccount(): void;
         onImportClientMessagesCompleted(): void;
@@ -531,11 +614,13 @@ declare namespace KBEngine {
         Client_onVersionNotMatch(stream: any): void;
         Client_onScriptVersionNotMatch(stream: any): void;
         onImportEntityDefCompleted(): void;
+        importClientMessages(stream: any): void;
         Client_onImportClientMessages(msg: any): void;
         createAccount(username: any, password: any, datas: any): void;
         createAccount_loginapp(noconnect: any): void;
         bindAccountEmail(emailAddress: any): void;
         newPassword(old_password: any, new_password: any): void;
+        logout(): void;
         login(username: any, password: any, datas: any): void;
         login_loginapp(noconnect: any): void;
         onOpenLoginapp_resetpassword(): void;
@@ -605,7 +690,30 @@ declare namespace KBEngine {
         Client_onUpdateData_xyz_y(stream: any): void;
         Client_onUpdateData_xyz_p(stream: any): void;
         Client_onUpdateData_xyz_r(stream: any): void;
-        _updateVolatileData(entityID: any, x: any, y: any, z: any, yaw: any, pitch: any, roll: any, isOnGround: any): void;
+        Client_onUpdateData_ypr_optimized(stream: any): void;
+        Client_onUpdateData_yp_optimized(stream: any): void;
+        Client_onUpdateData_yr_optimized(stream: any): void;
+        Client_onUpdateData_pr_optimized(stream: any): void;
+        Client_onUpdateData_y_optimized(stream: any): void;
+        Client_onUpdateData_p_optimized(stream: any): void;
+        Client_onUpdateData_r_optimized(stream: any): void;
+        Client_onUpdateData_xz_optimized(stream: any): void;
+        Client_onUpdateData_xz_ypr_optimized(stream: any): void;
+        Client_onUpdateData_xz_yp_optimized(stream: any): void;
+        Client_onUpdateData_xz_yr_optimized(stream: any): void;
+        Client_onUpdateData_xz_pr_optimized(stream: any): void;
+        Client_onUpdateData_xz_y_optimized(stream: any): void;
+        Client_onUpdateData_xz_p_optimized(stream: any): void;
+        Client_onUpdateData_xz_r_optimized(stream: any): void;
+        Client_onUpdateData_xyz_optimized(stream: any): void;
+        Client_onUpdateData_xyz_ypr_optimized(stream: any): void;
+        Client_onUpdateData_xyz_yp_optimized(stream: any): void;
+        Client_onUpdateData_xyz_yr_optimized(stream: any): void;
+        Client_onUpdateData_xyz_pr_optimized(stream: any): void;
+        Client_onUpdateData_xyz_y_optimized(stream: any): void;
+        Client_onUpdateData_xyz_p_optimized(stream: any): void;
+        Client_onUpdateData_xyz_r_optimized(stream: any): void;
+        _updateVolatileData(entityID: any, x: any, y: any, z: any, yaw: any, pitch: any, roll: any, isOnGround: any, isOptimized?: boolean): void;
         Client_onStreamDataStarted(id: any, datasize: any, descr: any): void;
         Client_onStreamDataRecv(stream: any): void;
         Client_onStreamDataCompleted(id: any): void;
@@ -618,6 +726,13 @@ declare namespace KBEngine {
         descr: string;
         id: number;
     }
+    const FragmentDataTypes: {
+        FRAGMENT_DATA_UNKNOW: number;
+        FRAGMENT_DATA_MESSAGE_ID: number;
+        FRAGMENT_DATA_MESSAGE_LENGTH: number;
+        FRAGMENT_DATA_MESSAGE_LENGTH1: number;
+        FRAGMENT_DATA_MESSAGE_BODY: number;
+    };
     let app: KBEngineApp;
     function create(args: KBEngineArgs): void;
     function destroy(): void;
