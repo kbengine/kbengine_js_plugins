@@ -3031,7 +3031,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.serverScriptVersion = "";
 		KBEngine.app.serverProtocolMD5 = "";
 		KBEngine.app.serverEntityDefMD5 = "";
-		KBEngine.app.clientVersion = "1.3.1";
+		KBEngine.app.clientVersion = "1.3.2";
 		KBEngine.app.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -3240,11 +3240,19 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				else
 				{
 					var wpos = stream.wpos;
-					var rpos = stream.rpos + msglen;
-					stream.wpos = rpos;
+					var frpos = stream.rpos + msglen;
+					stream.wpos = frpos;
+
 					msgHandler.handleMessage(stream);
+
+					if(msglen > 0 && frpos != stream.rpos)
+					{
+						KBEngine.WARNING_MSG("process message(" + msgHandler.name + "): rpos(" + stream.rpos + ") invalid, expect="
+						+ frpos + ". msgID=" + app.currMsgID + ", msglen=" + app.currMsgLen);
+					}
+				
 					stream.wpos = wpos;
-					stream.rpos = rpos;
+					stream.rpos = frpos;
 				}
 
 				app.currMsgID = 0;
