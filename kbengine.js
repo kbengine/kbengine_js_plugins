@@ -1089,8 +1089,7 @@ KBEngine.Bundle = function()
 			if(this.stream != this.memorystreams[i])
 				this.memorystreams[i].reclaimObject();
 		}
-			
-		
+
 		if(this.stream)
 			this.stream.clear();
 		else
@@ -3032,7 +3031,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.serverScriptVersion = "";
 		KBEngine.app.serverProtocolMD5 = "";
 		KBEngine.app.serverEntityDefMD5 = "";
-		KBEngine.app.clientVersion = "1.2.11";
+		KBEngine.app.clientVersion = "1.3.1";
 		KBEngine.app.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -3442,7 +3441,16 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			KBEngine.INFO_MSG("Client_onImportServerErrorsDescr: id=" + e.id + ", name=" + e.name + ", descr=" + e.descr);
 		}
 	}
-		
+
+	this.Client_onImportClientSdk = function(stream)
+	{
+		var remainingFiles = stream.readInt32();
+		var fileName = stream.readString();
+		var fileSize = stream.readInt32();
+		var fileDatas = stream.readBlob()
+		KBEngine.Event.fire("onImportClientSDK", remainingFiles, fileName, fileSize, fileDatas);
+	}
+
 	this.onOpenLoginapp_login = function()
 	{  
 		KBEngine.INFO_MSG("KBEngineApp::onOpenLoginapp_login: successfully!");
