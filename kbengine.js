@@ -3249,7 +3249,6 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 					{
 						KBEngine.WARNING_MSG("process message(" + msgHandler.name + "): rpos(" + stream.rpos + ") invalid, expect="
 						+ frpos + ". msgID=" + app.currMsgID + ", msglen=" + app.currMsgLen);
-
 					}
 				
 					stream.wpos = wpos;
