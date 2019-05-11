@@ -5,7 +5,8 @@
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
  *      2、cocos creator环境下,按下面方法声明实体
- *          @KBEngine.registerEntity('Account')
+
+            @KBEngine.registerEntity('Account') /// <---这个Account对应服务器上实体
             export default class AccountEntity extends KBEngine.Entity {
                 __init__() {
                     console.log('创建account')
@@ -14,7 +15,7 @@
             //这里加入声明用于vscode代码提示
             declare global {
                 namespace KBEngine.Entities {
-                    class Account extends AccountEntity { }
+                    class Account extends AccountEntity { }  /// <---这个Account对应服务器上实体
                 }
             } 
  *      3、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
@@ -24,7 +25,7 @@
                                             global
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
-    export const CLIENT_VERSION = '2.0.0';
+    export const CLIENT_VERSION = '2.5.0';
     export const CLIENT_SCRIPT_VERSION = '0.1.0';
 
     export const PACKET_MAX_SIZE = 1500;
@@ -43,7 +44,6 @@ namespace KBEngine {
  * 加上声明避免cocos creator编辑器报错
  */
 window['KBEngine'] = KBEngine;
-
 
 if (!ArrayBuffer['transfer']) {
     ArrayBuffer['transfer'] = function (source: ArrayBuffer, length: number): ArrayBuffer {
@@ -725,18 +725,6 @@ namespace KBEngine {
     }
     export module MemoryStream {
         export const _objects: MemoryStream[] = []
-        export class PackFloatXType {
-            _unionData: ArrayBuffer;
-            fv: Float32Array;
-            uv: Uint32Array;
-            iv: Int32Array;
-            constructor() {
-                this._unionData = new ArrayBuffer(4);
-                this.fv = new Float32Array(this._unionData, 0, 1);
-                this.uv = new Uint32Array(this._unionData, 0, 1);
-                this.iv = new Int32Array(this._unionData, 0, 1);
-            };
-        }
         export function createObject() {
             return MemoryStream._objects.length > 0 ? MemoryStream._objects.pop() : new MemoryStream(PACKET_MAX_SIZE_TCP);
         }
@@ -1353,6 +1341,7 @@ namespace KBEngine {
             }
 
             this.base.newCall();
+            this.base.bundle.writeUint16(0);
             this.base.bundle.writeUint16(methodID);
 
             try {
@@ -1400,7 +1389,8 @@ namespace KBEngine {
                 return;
             }
 
-            this.cell.newCall();
+            this.cell.newCall()
+            this.cell.bundle.writeUint16(0);
             this.cell.bundle.writeUint16(methodID);
 
             try {
@@ -1462,7 +1452,7 @@ namespace KBEngine {
 
         }
         set_position() {
-            // DEBUG_MSG(this.className + "::set_position: " + old);  
+            DEBUG_MSG(this.className + "::set_position: " + this.position);
             if (this.isPlayer()) {
                 app.entityServerPos.x = this.position.x;
                 app.entityServerPos.y = this.position.y;
@@ -1475,7 +1465,7 @@ namespace KBEngine {
 
         }
         set_direction(old) {
-            // DEBUG_MSG(this.className + "::set_direction: " + old);  
+            DEBUG_MSG(this.className + "::set_direction: " + this.direction);
             Event.fire("set_direction", this);
         }
     }
@@ -3454,13 +3444,16 @@ namespace KBEngine {
 
             let currModule = moduledefs[entity.className];
             let pdatas = currModule.propertys;
+            let componentUID;
             while (stream.length() > 0) {
                 let utype = 0;
-                if (currModule.usePropertyDescrAlias)
+                if (currModule.usePropertyDescrAlias) {
+                    componentUID = stream.readInt8();
                     utype = stream.readUint8();
-                else
+                } else {
+                    componentUID = stream.readUint16()
                     utype = stream.readUint16();
-
+                }
                 let propertydata = pdatas[utype];
                 let setmethod = propertydata[5];
                 let flags = propertydata[6];
@@ -3499,12 +3492,15 @@ namespace KBEngine {
                 return;
             }
 
-            let methodUtype = 0;
-            if (moduledefs[entity.className].useMethodDescrAlias)
+            let methodUtype = 0, ComponentID = 0;
+            if (moduledefs[entity.className].useMethodDescrAlias) {
+                ComponentID = stream.readInt8()
                 methodUtype = stream.readUint8();
-            else
+            }
+            else {
+                ComponentID = stream.readUint16();
                 methodUtype = stream.readUint16();
-
+            }
             let methoddata = moduledefs[entity.className].methods[methodUtype];
             let args = [];
             let argsdata = methoddata[3];

@@ -14,29 +14,32 @@ var __extends = (this && this.__extends) || (function () {
 /**
  * KBEngine的html5客户端扩展ts版   2.x版本
  * cocos creator 环境下使用方法
- * 将bin/js导入为插件，将bin/d.ts放在项目根目录下，即可
- *
- * todo 未完成内容
- * 1、强类型匹配
- * 2、代码注释
  *
  * 注：（下面的是重点）
- *      1、实体声明的命名空间为Entities,与官方的KBEngine不同
- *      2、cocos creator环境下，实体类声明完成后，需要类声明时加上@registerEntity('你的类名'),用于将变量提升至全局,加入下方一段用于代码提示
- *          declare global{
-                namespace Entities{
-                    class 类名 extends 类{}
+ *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
+ *      2、cocos creator环境下,按下面方法声明实体
+
+            @KBEngine.registerEntity('Account') /// <---这个Account对应服务器上实体
+            export default class AccountEntity extends KBEngine.Entity {
+                __init__() {
+                    console.log('创建account')
                 }
             }
- *      3、因为是ts，所以没有class.extends方法，需要声明时直接，class Account extends Entity{};
- *      4、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
+            //这里加入声明用于vscode代码提示
+            declare global {
+                namespace KBEngine.Entities {
+                    class Account extends AccountEntity { }  /// <---这个Account对应服务器上实体
+                }
+            }
+
+ *      3、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
  */
 /*-----------------------------------------------------------------------------------------
                                             global
 -----------------------------------------------------------------------------------------*/
 var KBEngine;
 (function (KBEngine) {
-    KBEngine.CLIENT_VERSION = '2.0.0';
+    KBEngine.CLIENT_VERSION = '2.4.2';
     KBEngine.CLIENT_SCRIPT_VERSION = '0.1.0';
     KBEngine.PACKET_MAX_SIZE = 1500;
     KBEngine.PACKET_MAX_SIZE_TCP = 1460;
@@ -694,17 +697,6 @@ if (!ArrayBuffer['transfer']) {
     KBEngine.MemoryStream = MemoryStream;
     (function (MemoryStream) {
         MemoryStream._objects = [];
-        var PackFloatXType = /** @class */ (function () {
-            function PackFloatXType() {
-                this._unionData = new ArrayBuffer(4);
-                this.fv = new Float32Array(this._unionData, 0, 1);
-                this.uv = new Uint32Array(this._unionData, 0, 1);
-                this.iv = new Int32Array(this._unionData, 0, 1);
-            }
-            ;
-            return PackFloatXType;
-        }());
-        MemoryStream.PackFloatXType = PackFloatXType;
         function createObject() {
             return MemoryStream._objects.length > 0 ? MemoryStream._objects.pop() : new MemoryStream(KBEngine.PACKET_MAX_SIZE_TCP);
         }
@@ -1265,6 +1257,7 @@ if (!ArrayBuffer['transfer']) {
                 return;
             }
             this.base.newCall();
+            this.base.bundle.writeUint16(0);
             this.base.bundle.writeUint16(methodID);
             try {
                 for (var i = 0; i < params.length; i++) {
@@ -1309,6 +1302,7 @@ if (!ArrayBuffer['transfer']) {
                 return;
             }
             this.cell.newCall();
+            this.cell.bundle.writeUint16(0);
             this.cell.bundle.writeUint16(methodID);
             try {
                 for (var i = 0; i < args.length; i++) {
@@ -3153,12 +3147,17 @@ if (!ArrayBuffer['transfer']) {
             }
             var currModule = KBEngine.moduledefs[entity.className];
             var pdatas = currModule.propertys;
+            var componentUID;
             while (stream.length() > 0) {
                 var utype = 0;
-                if (currModule.usePropertyDescrAlias)
+                if (currModule.usePropertyDescrAlias) {
+                    componentUID = stream.readInt8();
                     utype = stream.readUint8();
-                else
+                }
+                else {
+                    componentUID = stream.readUint16();
                     utype = stream.readUint16();
+                }
                 var propertydata = pdatas[utype];
                 var setmethod = propertydata[5];
                 var flags = propertydata[6];
@@ -3193,11 +3192,15 @@ if (!ArrayBuffer['transfer']) {
                 KBEngine.ERROR_MSG("KBEngineApp::Client_onRemoteMethodCall: entity(" + eid + ") not found!");
                 return;
             }
-            var methodUtype = 0;
-            if (KBEngine.moduledefs[entity.className].useMethodDescrAlias)
+            var methodUtype = 0, ComponentID = 0;
+            if (KBEngine.moduledefs[entity.className].useMethodDescrAlias) {
+                ComponentID = stream.readInt8();
                 methodUtype = stream.readUint8();
-            else
+            }
+            else {
+                ComponentID = stream.readUint16();
                 methodUtype = stream.readUint16();
+            }
             var methoddata = KBEngine.moduledefs[entity.className].methods[methodUtype];
             var args = [];
             var argsdata = methoddata[3];
