@@ -26,7 +26,7 @@
                                             global
 -----------------------------------------------------------------------------------------*/
 namespace KBEngine {
-    export const CLIENT_VERSION = '2.4.2';
+    export const CLIENT_VERSION = '2.5.0';
     export const CLIENT_SCRIPT_VERSION = '0.1.0';
 
     export const PACKET_MAX_SIZE = 1500;
