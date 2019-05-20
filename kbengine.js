@@ -3031,7 +3031,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		KBEngine.app.serverScriptVersion = "";
 		KBEngine.app.serverProtocolMD5 = "";
 		KBEngine.app.serverEntityDefMD5 = "";
-		KBEngine.app.clientVersion = "1.3.1";
+		KBEngine.app.clientVersion = "1.3.5";
 		KBEngine.app.clientScriptVersion = "0.1.0";
 		
 		// player的相关信息
@@ -3362,7 +3362,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 			return;
 
 		var dateObject = new Date();
-		if((dateObject.getTime() - KBEngine.app.lastTickTime) / 1000 > (KBEngine.app.args.serverHeartbeatTick / 2))
+		if(KBEngine.app.args.serverHeartbeatTick > 0 && (dateObject.getTime() - KBEngine.app.lastTickTime) / 1000 > (KBEngine.app.args.serverHeartbeatTick / 2))
 		{
 			// 如果心跳回调接收时间小于心跳发送时间，说明没有收到回调
 			// 此时应该通知客户端掉线了
@@ -4167,7 +4167,7 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		var failedcode = args.readUint16();
 		KBEngine.app.serverdatas = args.readBlob();
 		KBEngine.ERROR_MSG("KBEngineApp::Client_onLoginFailed: failedcode=" + failedcode + "(" + KBEngine.app.serverErrs[failedcode].name + "), datas(" + KBEngine.app.serverdatas.length + ")!");
-		KBEngine.Event.fire(KBEngine.EventTypes.onLoginFailed, failedcode);
+		KBEngine.Event.fire(KBEngine.EventTypes.onLoginFailed, failedcode, KBEngine.app.serverdatas);
 	}
 	
 	this.Client_onLoginSuccessfully = function(args)
@@ -5451,19 +5451,19 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		if(roll != KBEngine.KBE_FLT_MAX)
 		{
 			changeDirection = true;
-			entity.direction.x = KBEngine.int82angle(roll, false);
+			entity.direction.x = isOptimized ? KBEngine.int82angle(roll, false) : roll;
 		}
 
 		if(pitch != KBEngine.KBE_FLT_MAX)
 		{
 			changeDirection = true;
-			entity.direction.y = KBEngine.int82angle(pitch, false);
+			entity.direction.y = isOptimized ? KBEngine.int82angle(pitch, false) : pitch;
 		}
 		
 		if(yaw != KBEngine.KBE_FLT_MAX)
 		{
 			changeDirection = true;
-			entity.direction.z = KBEngine.int82angle(yaw, false);
+			entity.direction.z = isOptimized ? KBEngine.int82angle(yaw, false) : yaw;
 		}
 		
 		var done = false;
@@ -5477,9 +5477,9 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 		if(x != KBEngine.KBE_FLT_MAX || y != KBEngine.KBE_FLT_MAX || z != KBEngine.KBE_FLT_MAX)
 			positionChanged = true;
 
-		if (x == KBEngine.KBE_FLT_MAX) x = 0.0;
-		if (y == KBEngine.KBE_FLT_MAX) y = 0.0;
-		if (z == KBEngine.KBE_FLT_MAX) z = 0.0;
+		if (x == KBEngine.KBE_FLT_MAX) x = isOptimized ? 0.0 : entity.position.x;
+		if (y == KBEngine.KBE_FLT_MAX) y = isOptimized ? 0.0 : entity.position.y;
+		if (z == KBEngine.KBE_FLT_MAX) z = isOptimized ? 0.0 : entity.position.z;
         
 		if(positionChanged)
 		{
@@ -5495,7 +5495,6 @@ KBEngine.KBEngineApp = function(kbengineArgs)
 				entity.position.y = y;
 				entity.position.z = z;
 			}
-			
 			
 			done = true;
 			KBEngine.Event.fire(KBEngine.EventTypes.updatePosition, entity);
