@@ -1,16 +1,13 @@
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = function (d, b) {
-        extendStatics = Object.setPrototypeOf ||
-            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-    };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
+var __reflect = (this && this.__reflect) || function (p, c, t) {
+    p.__class__ = c, t ? t.push(c) : t = [c], p.__types__ = p.__types__ ? t.concat(p.__types__) : t;
+};
+var __extends = this && this.__extends || function __extends(t, e) { 
+ function r() { 
+ this.constructor = t;
+}
+for (var i in e) e.hasOwnProperty(i) && (t[i] = e[i]);
+r.prototype = e.prototype, t.prototype = new r();
+};
 /**
  * KBEngine的html5客户端扩展ts版   2.x版本
  * cocos creator 环境下使用方法
@@ -39,7 +36,7 @@ var __extends = (this && this.__extends) || (function () {
 -----------------------------------------------------------------------------------------*/
 var KBEngine;
 (function (KBEngine) {
-    KBEngine.CLIENT_VERSION = '2.4.2';
+    KBEngine.CLIENT_VERSION = '2.5.0';
     KBEngine.CLIENT_SCRIPT_VERSION = '0.1.0';
     KBEngine.PACKET_MAX_SIZE = 1500;
     KBEngine.PACKET_MAX_SIZE_TCP = 1460;
@@ -76,7 +73,7 @@ if (!ArrayBuffer['transfer']) {
                                                     number64bits
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var INT64 = /** @class */ (function () {
+    var INT64 = (function () {
         function INT64(lo, hi) {
             this.sign = 1;
             this.lo = lo;
@@ -112,7 +109,8 @@ if (!ArrayBuffer['transfer']) {
         return INT64;
     }());
     KBEngine.INT64 = INT64;
-    var UINT64 = /** @class */ (function () {
+    __reflect(INT64.prototype, "KBEngine.INT64");
+    var UINT64 = (function () {
         function UINT64(lo, hi) {
             this.lo = lo;
             this.hi = hi;
@@ -133,6 +131,7 @@ if (!ArrayBuffer['transfer']) {
         return UINT64;
     }());
     KBEngine.UINT64 = UINT64;
+    __reflect(UINT64.prototype, "KBEngine.UINT64");
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                             debug
@@ -227,7 +226,6 @@ if (!ArrayBuffer['transfer']) {
             else if (charcode < 0xd800 || charcode >= 0xe000) {
                 utf8.push(0xe0 | (charcode >> 12), 0x80 | ((charcode >> 6) & 0x3f), 0x80 | (charcode & 0x3f));
             }
-            // surrogate pair
             else {
                 i++;
                 // UTF-16 encodes 0x10000-0x10FFFF by
@@ -246,7 +244,7 @@ if (!ArrayBuffer['transfer']) {
                                             event
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var EventInfo = /** @class */ (function () {
+    var EventInfo = (function () {
         function EventInfo(classinst, callbackfn) {
             this.classinst = classinst;
             this.callbackfn = callbackfn;
@@ -254,7 +252,8 @@ if (!ArrayBuffer['transfer']) {
         return EventInfo;
     }());
     KBEngine.EventInfo = EventInfo;
-    var FiredEvent = /** @class */ (function () {
+    __reflect(EventInfo.prototype, "KBEngine.EventInfo");
+    var FiredEvent = (function () {
         function FiredEvent(evtName, evtInfo, ars) {
             this.evtName = evtName;
             this.evtInfo = evtInfo;
@@ -263,7 +262,8 @@ if (!ArrayBuffer['transfer']) {
         return FiredEvent;
     }());
     KBEngine.FiredEvent = FiredEvent;
-    var Events = /** @class */ (function () {
+    __reflect(FiredEvent.prototype, "KBEngine.FiredEvent");
+    var Events = (function () {
         function Events() {
             this._events = {};
             this._isPause = false;
@@ -292,18 +292,11 @@ if (!ArrayBuffer['transfer']) {
             var evtlst = this._events[evtName];
             if (!evtlst)
                 return;
-            while (true) {
-                var found = false;
-                for (var i = 0; i < evtlst.length; i++) {
-                    var info = evtlst[i];
-                    if (info.classinst == classinst) {
-                        evtlst.splice(i, 1);
-                        found = true;
-                        break;
-                    }
+            for (var i = evtlst.length - 1; i >= 0; i--) {
+                var info = evtlst[i];
+                if (info.classinst == classinst) {
+                    evtlst.splice(i, 1);
                 }
-                if (!found)
-                    break;
             }
         };
         Events.prototype.removeAllFiredEvent = function (classinst) {
@@ -311,18 +304,11 @@ if (!ArrayBuffer['transfer']) {
         };
         Events.prototype.removeFiredEvent = function (evtName, classinst) {
             var firedEvents = this._firedEvents;
-            while (true) {
-                var found = false;
-                for (var i = 0; i < firedEvents.length; i++) {
-                    var evt = firedEvents[i];
-                    if ((evtName == "" || evt.evtName == evtName) && evt.evtInfo.classinst == classinst) {
-                        firedEvents.splice(i, 1);
-                        found = true;
-                        break;
-                    }
+            for (var i = firedEvents.length - 1; i >= 0; i--) {
+                var evt = firedEvents[i];
+                if ((evtName == "" || evt.evtName == evtName) && evt.evtInfo.classinst == classinst) {
+                    firedEvents.splice(i, 1);
                 }
-                if (!found)
-                    break;
             }
         };
         Events.prototype.fire = function (evtName) {
@@ -383,13 +369,14 @@ if (!ArrayBuffer['transfer']) {
         return Events;
     }());
     KBEngine.Events = Events;
+    __reflect(Events.prototype, "KBEngine.Events");
     KBEngine.Event = new Events();
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                                 memorystream
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var PackFloatXType = /** @class */ (function () {
+    var PackFloatXType = (function () {
         function PackFloatXType() {
             this._unionData = new ArrayBuffer(4);
             this.fv = new Float32Array(this._unionData, 0, 1);
@@ -399,10 +386,11 @@ if (!ArrayBuffer['transfer']) {
         return PackFloatXType;
     }());
     KBEngine.PackFloatXType = PackFloatXType;
+    __reflect(PackFloatXType.prototype, "KBEngine.PackFloatXType");
     KBEngine._xPackData = new PackFloatXType();
     KBEngine._yPackData = new PackFloatXType();
     KBEngine._zPackData = new PackFloatXType();
-    var MemoryStream = /** @class */ (function () {
+    var MemoryStream = (function () {
         function MemoryStream(size_or_buffer) {
             this.rpos = 0;
             this.wpos = 0;
@@ -695,6 +683,7 @@ if (!ArrayBuffer['transfer']) {
         return MemoryStream;
     }());
     KBEngine.MemoryStream = MemoryStream;
+    __reflect(MemoryStream.prototype, "KBEngine.MemoryStream");
     (function (MemoryStream) {
         MemoryStream._objects = [];
         function createObject() {
@@ -707,7 +696,7 @@ if (!ArrayBuffer['transfer']) {
                                                 bundle
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var Bundle = /** @class */ (function () {
+    var Bundle = (function () {
         function Bundle() {
             this.memorystreams = new Array();
             this.numMessage = 0;
@@ -846,6 +835,7 @@ if (!ArrayBuffer['transfer']) {
         return Bundle;
     }());
     KBEngine.Bundle = Bundle;
+    __reflect(Bundle.prototype, "KBEngine.Bundle");
     KBEngine.reader = new KBEngine.MemoryStream(0);
     KBEngine.datatype2id = {};
     function mappingDataType() {
@@ -942,7 +932,7 @@ if (!ArrayBuffer['transfer']) {
         }
     }
     KBEngine.bindReader = bindReader;
-    var Message = /** @class */ (function () {
+    var Message = (function () {
         function Message(id, name, length, argsType, args, handler) {
             this.id = id;
             this.name = name;
@@ -981,6 +971,7 @@ if (!ArrayBuffer['transfer']) {
         return Message;
     }());
     KBEngine.Message = Message;
+    __reflect(Message.prototype, "KBEngine.Message");
     var messages;
     (function (messages) {
         messages.loginapp = {};
@@ -997,7 +988,7 @@ if (!ArrayBuffer['transfer']) {
                                             math
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var Vector2 = /** @class */ (function () {
+    var Vector2 = (function () {
         function Vector2(x, y) {
             this.x = x;
             this.y = y;
@@ -1035,7 +1026,8 @@ if (!ArrayBuffer['transfer']) {
         return Vector2;
     }());
     KBEngine.Vector2 = Vector2;
-    var Vector3 = /** @class */ (function () {
+    __reflect(Vector2.prototype, "KBEngine.Vector2");
+    var Vector3 = (function () {
         function Vector3(x, y, z) {
             this.x = x;
             this.y = y;
@@ -1088,7 +1080,8 @@ if (!ArrayBuffer['transfer']) {
         return Vector3;
     }());
     KBEngine.Vector3 = Vector3;
-    var Vector4 = /** @class */ (function () {
+    __reflect(Vector3.prototype, "KBEngine.Vector3");
+    var Vector4 = (function () {
         function Vector4(x, y, z, w) {
             this.x = x;
             this.y = y;
@@ -1144,6 +1137,7 @@ if (!ArrayBuffer['transfer']) {
         return Vector4;
     }());
     KBEngine.Vector4 = Vector4;
+    __reflect(Vector4.prototype, "KBEngine.Vector4");
     function clampf(value, min_inclusive, max_inclusive) {
         if (min_inclusive > max_inclusive) {
             var temp = min_inclusive;
@@ -1174,7 +1168,7 @@ if (!ArrayBuffer['transfer']) {
                                             entity
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var Entity = /** @class */ (function () {
+    var Entity = (function () {
         function Entity() {
             this.id = 0;
             this.className = "";
@@ -1356,7 +1350,7 @@ if (!ArrayBuffer['transfer']) {
         Entity.prototype.onLeaveSpace = function () {
         };
         Entity.prototype.set_position = function () {
-            // DEBUG_MSG(this.className + "::set_position: " + old);  
+            KBEngine.DEBUG_MSG(this.className + "::set_position: " + this.position);
             if (this.isPlayer()) {
                 KBEngine.app.entityServerPos.x = this.position.x;
                 KBEngine.app.entityServerPos.y = this.position.y;
@@ -1367,12 +1361,13 @@ if (!ArrayBuffer['transfer']) {
         Entity.prototype.onUpdateVolatileData = function () {
         };
         Entity.prototype.set_direction = function (old) {
-            // DEBUG_MSG(this.className + "::set_direction: " + old);  
+            KBEngine.DEBUG_MSG(this.className + "::set_direction: " + this.direction);
             KBEngine.Event.fire("set_direction", this);
         };
         return Entity;
     }());
     KBEngine.Entity = Entity;
+    __reflect(Entity.prototype, "KBEngine.Entity");
     function registerEntity(name) {
         return function (ctor) {
             KBEngine['Entities'] = KBEngine['Entities'] || {};
@@ -1388,13 +1383,14 @@ if (!ArrayBuffer['transfer']) {
     KBEngine.ENTITYCALL_TYPE_CELL = 0;
     KBEngine.ENTITYCALL_TYPE_BASE = 1;
     //这个东西好像没有同步给客户端
-    var EntityComponent = /** @class */ (function () {
+    var EntityComponent = (function () {
         function EntityComponent() {
         }
         return EntityComponent;
     }());
     KBEngine.EntityComponent = EntityComponent;
-    var EntityCall = /** @class */ (function () {
+    __reflect(EntityComponent.prototype, "KBEngine.EntityComponent");
+    var EntityCall = (function () {
         function EntityCall() {
             this.id = 0;
             this.className = '';
@@ -1428,7 +1424,8 @@ if (!ArrayBuffer['transfer']) {
         return EntityCall;
     }());
     KBEngine.EntityCall = EntityCall;
-    var DATATYPE_UINT8 = /** @class */ (function () {
+    __reflect(EntityCall.prototype, "KBEngine.EntityCall");
+    var DATATYPE_UINT8 = (function () {
         function DATATYPE_UINT8() {
         }
         DATATYPE_UINT8.prototype.bind = function () {
@@ -1454,7 +1451,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_UINT8;
     }());
     KBEngine.DATATYPE_UINT8 = DATATYPE_UINT8;
-    var DATATYPE_UINT16 = /** @class */ (function () {
+    __reflect(DATATYPE_UINT8.prototype, "KBEngine.DATATYPE_UINT8");
+    var DATATYPE_UINT16 = (function () {
         function DATATYPE_UINT16() {
         }
         DATATYPE_UINT16.prototype.bind = function () {
@@ -1480,7 +1478,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_UINT16;
     }());
     KBEngine.DATATYPE_UINT16 = DATATYPE_UINT16;
-    var DATATYPE_UINT32 = /** @class */ (function () {
+    __reflect(DATATYPE_UINT16.prototype, "KBEngine.DATATYPE_UINT16");
+    var DATATYPE_UINT32 = (function () {
         function DATATYPE_UINT32() {
         }
         DATATYPE_UINT32.prototype.bind = function () {
@@ -1506,7 +1505,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_UINT32;
     }());
     KBEngine.DATATYPE_UINT32 = DATATYPE_UINT32;
-    var DATATYPE_UINT64 = /** @class */ (function () {
+    __reflect(DATATYPE_UINT32.prototype, "KBEngine.DATATYPE_UINT32");
+    var DATATYPE_UINT64 = (function () {
         function DATATYPE_UINT64() {
         }
         DATATYPE_UINT64.prototype.bind = function () {
@@ -1526,7 +1526,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_UINT64;
     }());
     KBEngine.DATATYPE_UINT64 = DATATYPE_UINT64;
-    var DATATYPE_INT8 = /** @class */ (function () {
+    __reflect(DATATYPE_UINT64.prototype, "KBEngine.DATATYPE_UINT64");
+    var DATATYPE_INT8 = (function () {
         function DATATYPE_INT8() {
         }
         DATATYPE_INT8.prototype.bind = function () {
@@ -1552,7 +1553,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_INT8;
     }());
     KBEngine.DATATYPE_INT8 = DATATYPE_INT8;
-    var DATATYPE_INT16 = /** @class */ (function () {
+    __reflect(DATATYPE_INT8.prototype, "KBEngine.DATATYPE_INT8");
+    var DATATYPE_INT16 = (function () {
         function DATATYPE_INT16() {
         }
         DATATYPE_INT16.prototype.bind = function () {
@@ -1578,7 +1580,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_INT16;
     }());
     KBEngine.DATATYPE_INT16 = DATATYPE_INT16;
-    var DATATYPE_INT32 = /** @class */ (function () {
+    __reflect(DATATYPE_INT16.prototype, "KBEngine.DATATYPE_INT16");
+    var DATATYPE_INT32 = (function () {
         function DATATYPE_INT32() {
         }
         DATATYPE_INT32.prototype.bind = function () {
@@ -1604,7 +1607,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_INT32;
     }());
     KBEngine.DATATYPE_INT32 = DATATYPE_INT32;
-    var DATATYPE_INT64 = /** @class */ (function () {
+    __reflect(DATATYPE_INT32.prototype, "KBEngine.DATATYPE_INT32");
+    var DATATYPE_INT64 = (function () {
         function DATATYPE_INT64() {
         }
         DATATYPE_INT64.prototype.bind = function () {
@@ -1624,7 +1628,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_INT64;
     }());
     KBEngine.DATATYPE_INT64 = DATATYPE_INT64;
-    var DATATYPE_FLOAT = /** @class */ (function () {
+    __reflect(DATATYPE_INT64.prototype, "KBEngine.DATATYPE_INT64");
+    var DATATYPE_FLOAT = (function () {
         function DATATYPE_FLOAT() {
         }
         DATATYPE_FLOAT.prototype.bind = function () {
@@ -1644,7 +1649,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_FLOAT;
     }());
     KBEngine.DATATYPE_FLOAT = DATATYPE_FLOAT;
-    var DATATYPE_DOUBLE = /** @class */ (function (_super) {
+    __reflect(DATATYPE_FLOAT.prototype, "KBEngine.DATATYPE_FLOAT");
+    var DATATYPE_DOUBLE = (function (_super) {
         __extends(DATATYPE_DOUBLE, _super);
         function DATATYPE_DOUBLE() {
             return _super !== null && _super.apply(this, arguments) || this;
@@ -1658,7 +1664,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_DOUBLE;
     }(DATATYPE_FLOAT));
     KBEngine.DATATYPE_DOUBLE = DATATYPE_DOUBLE;
-    var DATATYPE_STRING = /** @class */ (function () {
+    __reflect(DATATYPE_DOUBLE.prototype, "KBEngine.DATATYPE_DOUBLE");
+    var DATATYPE_STRING = (function () {
         function DATATYPE_STRING() {
         }
         DATATYPE_STRING.prototype.bind = function () {
@@ -1680,7 +1687,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_STRING;
     }());
     KBEngine.DATATYPE_STRING = DATATYPE_STRING;
-    var DATATYPE_VECTOR2 = /** @class */ (function () {
+    __reflect(DATATYPE_STRING.prototype, "KBEngine.DATATYPE_STRING");
+    var DATATYPE_VECTOR2 = (function () {
         function DATATYPE_VECTOR2() {
         }
         DATATYPE_VECTOR2.prototype.bind = function () {
@@ -1720,7 +1728,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_VECTOR2;
     }());
     KBEngine.DATATYPE_VECTOR2 = DATATYPE_VECTOR2;
-    var DATATYPE_VECTOR3 = /** @class */ (function () {
+    __reflect(DATATYPE_VECTOR2.prototype, "KBEngine.DATATYPE_VECTOR2");
+    var DATATYPE_VECTOR3 = (function () {
         function DATATYPE_VECTOR3() {
         }
         DATATYPE_VECTOR3.prototype.bind = function () {
@@ -1757,7 +1766,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_VECTOR3;
     }());
     KBEngine.DATATYPE_VECTOR3 = DATATYPE_VECTOR3;
-    var DATATYPE_VECTOR4 = /** @class */ (function () {
+    __reflect(DATATYPE_VECTOR3.prototype, "KBEngine.DATATYPE_VECTOR3");
+    var DATATYPE_VECTOR4 = (function () {
         function DATATYPE_VECTOR4() {
         }
         DATATYPE_VECTOR4.prototype.bind = function () {
@@ -1796,7 +1806,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_VECTOR4;
     }());
     KBEngine.DATATYPE_VECTOR4 = DATATYPE_VECTOR4;
-    var DATATYPE_PYTHON = /** @class */ (function () {
+    __reflect(DATATYPE_VECTOR4.prototype, "KBEngine.DATATYPE_VECTOR4");
+    var DATATYPE_PYTHON = (function () {
         function DATATYPE_PYTHON() {
         }
         DATATYPE_PYTHON.prototype.bind = function () {
@@ -1816,7 +1827,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_PYTHON;
     }());
     KBEngine.DATATYPE_PYTHON = DATATYPE_PYTHON;
-    var DATATYPE_UNICODE = /** @class */ (function () {
+    __reflect(DATATYPE_PYTHON.prototype, "KBEngine.DATATYPE_PYTHON");
+    var DATATYPE_UNICODE = (function () {
         function DATATYPE_UNICODE() {
         }
         DATATYPE_UNICODE.prototype.bind = function () {
@@ -1838,7 +1850,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_UNICODE;
     }());
     KBEngine.DATATYPE_UNICODE = DATATYPE_UNICODE;
-    var DATATYPE_ENTITY_COMPONENT = /** @class */ (function () {
+    __reflect(DATATYPE_UNICODE.prototype, "KBEngine.DATATYPE_UNICODE");
+    var DATATYPE_ENTITY_COMPONENT = (function () {
         function DATATYPE_ENTITY_COMPONENT() {
         }
         DATATYPE_ENTITY_COMPONENT.prototype.bind = function () {
@@ -1857,7 +1870,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_ENTITY_COMPONENT;
     }());
     KBEngine.DATATYPE_ENTITY_COMPONENT = DATATYPE_ENTITY_COMPONENT;
-    var DATATYPE_ENTITYCALL = /** @class */ (function () {
+    __reflect(DATATYPE_ENTITY_COMPONENT.prototype, "KBEngine.DATATYPE_ENTITY_COMPONENT");
+    var DATATYPE_ENTITYCALL = (function () {
         function DATATYPE_ENTITYCALL() {
         }
         DATATYPE_ENTITYCALL.prototype.bind = function () {
@@ -1876,7 +1890,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_ENTITYCALL;
     }());
     KBEngine.DATATYPE_ENTITYCALL = DATATYPE_ENTITYCALL;
-    var DATATYPE_BLOB = /** @class */ (function () {
+    __reflect(DATATYPE_ENTITYCALL.prototype, "KBEngine.DATATYPE_ENTITYCALL");
+    var DATATYPE_BLOB = (function () {
         function DATATYPE_BLOB() {
         }
         DATATYPE_BLOB.prototype.bind = function () {
@@ -1899,7 +1914,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_BLOB;
     }());
     KBEngine.DATATYPE_BLOB = DATATYPE_BLOB;
-    var DATATYPE_ARRAY = /** @class */ (function () {
+    __reflect(DATATYPE_BLOB.prototype, "KBEngine.DATATYPE_BLOB");
+    var DATATYPE_ARRAY = (function () {
         function DATATYPE_ARRAY() {
             this.type = null;
         }
@@ -1937,7 +1953,8 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_ARRAY;
     }());
     KBEngine.DATATYPE_ARRAY = DATATYPE_ARRAY;
-    var DATATYPE_FIXED_DICT = /** @class */ (function () {
+    __reflect(DATATYPE_ARRAY.prototype, "KBEngine.DATATYPE_ARRAY");
+    var DATATYPE_FIXED_DICT = (function () {
         function DATATYPE_FIXED_DICT() {
             this.dicttype = {};
             this.implementedBy = null;
@@ -1975,6 +1992,7 @@ if (!ArrayBuffer['transfer']) {
         return DATATYPE_FIXED_DICT;
     }());
     KBEngine.DATATYPE_FIXED_DICT = DATATYPE_FIXED_DICT;
+    __reflect(DATATYPE_FIXED_DICT.prototype, "KBEngine.DATATYPE_FIXED_DICT");
     var datatypes;
     (function (datatypes) {
         datatypes.UINT8 = new DATATYPE_UINT8();
@@ -2005,7 +2023,7 @@ if (!ArrayBuffer['transfer']) {
                                             KBEngine args
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
-    var KBEngineArgs = /** @class */ (function () {
+    var KBEngineArgs = (function () {
         function KBEngineArgs() {
             this.ip = '127.0.0.1';
             this.port = 20013;
@@ -2027,6 +2045,7 @@ if (!ArrayBuffer['transfer']) {
         return KBEngineArgs;
     }());
     KBEngine.KBEngineArgs = KBEngineArgs;
+    __reflect(KBEngineArgs.prototype, "KBEngine.KBEngineArgs");
     KBEngine.EventTypes = {
         // Create new account.
         // <para> param1(string): accountName</para>
@@ -2148,7 +2167,7 @@ if (!ArrayBuffer['transfer']) {
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
     KBEngine.moduledefs = {};
-    var KBEngineApp = /** @class */ (function () {
+    var KBEngineApp = (function () {
         function KBEngineApp(args) {
             this.args = args;
             this.username = "testhtml51";
@@ -3983,8 +4002,9 @@ if (!ArrayBuffer['transfer']) {
         return KBEngineApp;
     }());
     KBEngine.KBEngineApp = KBEngineApp;
+    __reflect(KBEngineApp.prototype, "KBEngine.KBEngineApp");
     // 描述服务端返回的错误信息
-    var ServerErr = /** @class */ (function () {
+    var ServerErr = (function () {
         function ServerErr() {
             this.name = "";
             this.descr = "";
@@ -3993,6 +4013,7 @@ if (!ArrayBuffer['transfer']) {
         return ServerErr;
     }());
     KBEngine.ServerErr = ServerErr;
+    __reflect(ServerErr.prototype, "KBEngine.ServerErr");
     KBEngine.FragmentDataTypes = {
         FRAGMENT_DATA_UNKNOW: 0,
         FRAGMENT_DATA_MESSAGE_ID: 1,

@@ -266,19 +266,11 @@ namespace KBEngine {
         deregister(evtName: string, classinst) {
             let evtlst = this._events[evtName];
             if (!evtlst) return;
-            while (true) {
-                let found = false;
-                for (let i = 0; i < evtlst.length; i++) {
-                    let info = evtlst[i];
-                    if (info.classinst == classinst) {
-                        evtlst.splice(i, 1);
-                        found = true;
-                        break;
-                    }
+            for (let i = evtlst.length - 1; i >= 0; i--) {
+                let info = evtlst[i];
+                if (info.classinst == classinst) {
+                    evtlst.splice(i, 1);
                 }
-
-                if (!found)
-                    break;
             }
         }
         removeAllFiredEvent(classinst) {
@@ -286,19 +278,11 @@ namespace KBEngine {
         }
         removeFiredEvent(evtName: string, classinst) {
             let firedEvents = this._firedEvents;
-            while (true) {
-                let found = false;
-                for (let i = 0; i < firedEvents.length; i++) {
-                    let evt = firedEvents[i];
-                    if ((evtName == "" || evt.evtName == evtName) && evt.evtInfo.classinst == classinst) {
-                        firedEvents.splice(i, 1);
-                        found = true;
-                        break;
-                    }
+            for (let i = firedEvents.length - 1; i >= 0; i--) {
+                let evt = firedEvents[i];
+                if ((evtName == "" || evt.evtName == evtName) && evt.evtInfo.classinst == classinst) {
+                    firedEvents.splice(i, 1);
                 }
-
-                if (!found)
-                    break;
             }
         }
         fire(evtName: string, ...args: any[]) {
