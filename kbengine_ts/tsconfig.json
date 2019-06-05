@@ -5,13 +5,13 @@
 		"sourceMap": false,
 		"declaration": true,
 		"experimentalDecorators": true,
-		"outFile": "bin/kbengine.js"
+		"outFile": "kbengine/kbengine.js"
 	},
 	"include": [
 		"libs",
 		"src"
 	],
 	"exclude": [
-		"bin"
+		"kbengine"
 	]
 }

@@ -4,22 +4,24 @@
  *
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下,按下面方法声明实体
-
-            @KBEngine.registerEntity('Account') /// <---这个Account对应服务器上实体
-            export default class AccountEntity extends KBEngine.Entity {
+ *      2、 @KBEngine.registerEntity()    ///  TODO: <---组件使用@KBEngine.registerComponent()
+            export default class Account extends KBEngine.Entity {      ///  TODO: 组件继承自KBEngine.EntityComponent,类名等于服务器(实体/组件)名
+                __comps__ = {组件名:组件类型}    ///TODO: 因为组件类型不会从服务器同步，只能获取到EntityComponent，无法获取具体类型，所以需要在实体里进行手动设置，需要代码提示可以手动声明一下
                 __init__() {
                     console.log('创建account')
                 }
             }
             //这里加入声明用于vscode代码提示
             declare global {
-                namespace KBEngine.Entities {
-                    class Account extends AccountEntity { }  /// <---这个Account对应服务器上实体
+                namespace KBEngine {
+                    interface IEntities{
+                        Account:new ()=>Account
+                    }
                 }
             }
 
  *      3、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
+        4、因为下班了，组件的basecall和cellcall还未测试，改天再继续
  */
 declare namespace KBEngine {
     const CLIENT_VERSION = "2.5.0";
@@ -48,6 +50,9 @@ declare namespace KBEngine {
         hi: number;
         toString(): string;
     }
+}
+declare namespace KBEngine {
+    function getQualifiedClassName(value: any): any;
 }
 declare namespace KBEngine {
     /** todo 调试输出模块，这里需要根据使用的引擎不同在这里加入判断条件 */
@@ -254,10 +259,14 @@ declare namespace KBEngine {
     function angle2int8(v: number, half: boolean): number;
 }
 declare namespace KBEngine {
-    module Entities {
+    interface IEntities {
     }
+    const Entities: IEntities;
     class Entity {
         constructor();
+        protected __comps__: {
+            [compName: string]: new () => EntityComponent;
+        };
         id: number;
         className: string;
         position: Vector3;
@@ -272,6 +281,9 @@ declare namespace KBEngine {
         entityLastLocalDir: Vector3;
         isOnGround: boolean;
         __init__(): void;
+        attachComponents(): void;
+        getComponents(compName: string, all?: boolean): any;
+        detachComponents(): void;
         callPropertysSetMethods(): void;
         onDestroy(): void;
         onControlled(bIsControlled: any): void;
@@ -279,6 +291,8 @@ declare namespace KBEngine {
         baseCall(type: string, ...params: any[]): void;
         cellCall(type: string, ...params: any[]): void;
         enterWorld(): void;
+        onComponentsEnterworld(): void;
+        onComponentsLeaveworld(): void;
         onEnterWorld(): void;
         leaveWorld(): void;
         onLeaveWorld(): void;
@@ -288,15 +302,33 @@ declare namespace KBEngine {
         onLeaveSpace(): void;
         set_position(): void;
         onUpdateVolatileData(): void;
+        onUpdatePropertys(stream: MemoryStream): void;
         set_direction(old: any): void;
     }
-    function registerEntity(name: string): (ctor: new () => Entity) => void;
+    function registerEntity(): (ctor: new () => Entity) => void;
+}
+declare namespace KBEngine {
+    class EntityComponent {
+        id: number;
+        entityComponentPropertyID: number;
+        componentType: number;
+        ownerID: number;
+        owner: Entity;
+        name_: string;
+        base: EntityComponentCall;
+        cell: EntityComponentCall;
+        protected onAttached(owner: Entity): void;
+        protected onDetached(owner: Entity): void;
+        protected onEnterWorld(): void;
+        protected onLeaveWorld(): void;
+        onUpdatePropertys(propUtype: number, stream: MemoryStream, maxCount: number): void;
+        createFromStream(stream: MemoryStream): void;
+    }
+    function registerComponent(): (ctor: new () => EntityComponent) => void;
 }
 declare namespace KBEngine {
     const ENTITYCALL_TYPE_CELL = 0;
     const ENTITYCALL_TYPE_BASE = 1;
-    class EntityComponent {
-    }
     class EntityCall {
         constructor();
         id: number;
@@ -308,6 +340,9 @@ declare namespace KBEngine {
         isCell(): boolean;
         newCall(): any;
         sendCall(bundle: any): void;
+    }
+    class EntityComponentCall extends EntityCall {
+        constructor(ecpId: number, eid: number);
     }
     class DATATYPE_UINT8 {
         bind(): void;
@@ -418,13 +453,6 @@ declare namespace KBEngine {
         parseDefaultValStr(v: any): string;
         isSameType(v: any): boolean;
     }
-    class DATATYPE_ENTITY_COMPONENT {
-        bind(): void;
-        createFromStream(stream: any): void;
-        addToStream(stream: any, v: any): void;
-        parseDefaultValStr(v: any): Uint8Array;
-        isSameType(v: any): boolean;
-    }
     class DATATYPE_ENTITYCALL {
         bind(): void;
         createFromStream(stream: any): void;
@@ -474,7 +502,6 @@ declare namespace KBEngine {
         const PYTHON: DATATYPE_PYTHON;
         const UNICODE: DATATYPE_UNICODE;
         const ENTITYCALL: DATATYPE_ENTITYCALL;
-        const ENTITY_COMPONENT: DATATYPE_ENTITY_COMPONENT;
         const BLOB: DATATYPE_BLOB;
     }
 }

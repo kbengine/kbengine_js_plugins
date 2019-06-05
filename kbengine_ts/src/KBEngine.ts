@@ -4,22 +4,24 @@
  * 
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下,按下面方法声明实体
-
-            @KBEngine.registerEntity('Account') /// <---这个Account对应服务器上实体
-            export default class AccountEntity extends KBEngine.Entity {
+ *      2、 @KBEngine.registerEntity()    ///  TODO: <---组件使用@KBEngine.registerComponent()
+            export default class Account extends KBEngine.Entity {      ///  TODO: 组件继承自KBEngine.EntityComponent,类名等于服务器(实体/组件)名
+                __comps__ = {组件名:组件类型}    ///TODO: 因为组件类型不会从服务器同步，只能获取到EntityComponent，无法获取具体类型，所以需要在实体里进行手动设置，需要代码提示可以手动声明一下
                 __init__() {
                     console.log('创建account')
                 }
             }
             //这里加入声明用于vscode代码提示
             declare global {
-                namespace KBEngine.Entities {
-                    class Account extends AccountEntity { }  /// <---这个Account对应服务器上实体
+                namespace KBEngine {
+                    interface IEntities{
+                        Account:new ()=>Account
+                    }
                 }
             } 
 
  *      3、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
+        4、因为下班了，组件的basecall和cellcall还未测试，改天再继续
  */
 
 /*-----------------------------------------------------------------------------------------
@@ -131,6 +133,28 @@ namespace KBEngine {
             result += low;
             return result;
         }
+    }
+}
+namespace KBEngine {
+    export function getQualifiedClassName(value) {
+        let type = typeof value;
+        if (!value || (type != "object" && !value.prototype)) {
+            return type;
+        }
+        let prototype = value.prototype ? value.prototype : Object.getPrototypeOf(value);
+        if (prototype.hasOwnProperty("__class__")) {
+            return prototype["__class__"];
+        }
+        let constructorString = prototype.constructor.toString().trim();
+        let index = constructorString.indexOf("(");
+        let className = constructorString.substring(9, index);
+        let c = className.split('.')
+        Object.defineProperty(prototype, "__class__", {
+            value: c[c.length - 1],
+            enumerable: false,
+            writable: true
+        });
+        return c[c.length - 1];
     }
 }
 /*-----------------------------------------------------------------------------------------
@@ -1227,12 +1251,16 @@ namespace KBEngine {
 -----------------------------------------------------------------------------------------*/
 
 namespace KBEngine {
-    export module Entities { }
+    export interface IEntities { }
+    export const Entities: IEntities = {}
 
     export class Entity {
         constructor() {
-
+            for (let i in this.__comps__) {
+                this[i] = new this.__comps__[i]()
+            }
         }
+        protected __comps__: { [compName: string]: new () => EntityComponent } = {}
         id: number = 0;
         className: string = "";
         position: Vector3 = new Vector3(0, 0, 0);
@@ -1259,6 +1287,28 @@ namespace KBEngine {
 
         __init__() {
 
+        }
+        attachComponents() {
+            for (let i in this.__comps__) {
+                this[i].onAttached(this)
+            }
+        }
+        getComponents(compName: string, all: boolean = false) {
+            let res = []
+            for (let i in this.__comps__) {
+                if (getQualifiedClassName(this.__comps__[i]) === compName) {
+                    if (!all) {
+                        return this[i];
+                    }
+                    res.push(this[i])
+                }
+            }
+            return res;
+        }
+        detachComponents() {
+            for (let i in this.__comps__) {
+                this[i].onDetached(this)
+            }
         }
         callPropertysSetMethods() {
             let currModule = moduledefs[this.className];
@@ -1291,7 +1341,7 @@ namespace KBEngine {
             };
         }
         onDestroy() {
-
+            this.detachComponents()
         }
         onControlled(bIsControlled) {
 
@@ -1401,8 +1451,18 @@ namespace KBEngine {
             INFO_MSG(this.className + '::enterWorld: ' + this.id);
             this.inWorld = true;
             this.onEnterWorld();
-
+            this.onComponentsEnterworld();
             Event.fire("onEnterWorld", this);
+        }
+        onComponentsEnterworld() {
+            for (let i in this.__comps__) {
+                this[i].onEnterWorld()
+            }
+        }
+        onComponentsLeaveworld() {
+            for (let i in this.__comps__) {
+                this[i].onLeaveWorld()
+            }
         }
         onEnterWorld() {
 
@@ -1411,6 +1471,7 @@ namespace KBEngine {
             INFO_MSG(this.className + '::leaveWorld: ' + this.id);
             this.inWorld = false;
             this.onLeaveWorld();
+            this.onComponentsLeaveworld()
             Event.fire("onLeaveWorld", this);
         }
         onLeaveWorld() {
@@ -1449,14 +1510,136 @@ namespace KBEngine {
         onUpdateVolatileData() {
 
         }
+        onUpdatePropertys(stream: MemoryStream) {
+            let currModule = moduledefs[getQualifiedClassName(this)];
+            let pdatas = currModule.propertys;
+            while (stream.length() > 0) {
+                let utype = 0, cId = 0;
+                if (currModule.usePropertyDescrAlias) {
+                    cId = stream.readUint8()
+                    utype = stream.readUint8()
+                } else {
+                    cId = stream.readUint16()
+                    utype = stream.readUint16()
+                }
+                if (cId !== 0) {
+                    let comp = pdatas[cId];
+                    if (this[comp[2]]) {
+                        this[comp[2]].onUpdatePropertys(utype, stream, -1)
+                    }
+                    continue;
+                }
+                let propertydata = pdatas[utype];
+                let setmethod = propertydata[5];
+                let flags = propertydata[6];
+                if (!propertydata[4]) {
+                    if (this[propertydata[2]] && typeof this[propertydata[2]].createFromStream === 'function')
+                        this[propertydata[2]].createFromStream(stream)
+                    continue;
+                }
+                let val = propertydata[4].createFromStream(stream);
+                let oldval = this[propertydata[2]];
+                KBEngine.INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + this.className + "(id=" + this.id + " " + propertydata[2] + ", val=" + val + ")!");
+                this[propertydata[2]] = val;
+                if (setmethod != null) {
+                    // base类属性或者进入世界后cell类属性会触发set_*方法
+                    if (flags == 0x00000020 || flags == 0x00000040) {
+                        if (this.inited)
+                            setmethod.call(this, oldval);
+                    }
+                    else {
+                        if (this.inWorld)
+                            setmethod.call(this, oldval);
+                    }
+                }
+            }
+        }
         set_direction(old) {
             DEBUG_MSG(this.className + "::set_direction: " + this.direction);
             Event.fire("set_direction", this);
         }
     }
-    export function registerEntity(name: string) {
+    export function registerEntity() {
         return (ctor: new () => Entity) => {
-            KBEngine['Entities'] = KBEngine['Entities'] || {}
+            let name = getQualifiedClassName(ctor);
+            // KBEngine['Entities'] = KBEngine['Entities'] || {}
+            KBEngine['Entities'][name] = ctor;
+        }
+    }
+}
+namespace KBEngine {
+    export class EntityComponent {
+        id = 0
+        entityComponentPropertyID = 0;
+        componentType = 0;
+        ownerID = 0;
+        owner: Entity = null;
+        name_: string = ''
+
+        base: EntityComponentCall = null;
+        cell: EntityComponentCall = null;
+
+        protected onAttached(owner: Entity) { }
+        protected onDetached(owner: Entity) { }
+        protected onEnterWorld() { }
+        protected onLeaveWorld() { }
+
+        onUpdatePropertys(propUtype: number, stream: MemoryStream, maxCount: number) {
+            let className = getQualifiedClassName(this)
+            let currModule = moduledefs[className];
+            let pdatas = currModule.propertys;
+            while (stream.length() > 0 && maxCount-- != 0) {
+                let utype = propUtype, cId = 0;
+                if (utype === 0) {
+                    if (currModule.usePropertyDescrAlias) {
+                        cId = stream.readUint8()
+                        utype = stream.readUint8()
+                    } else {
+                        cId = stream.readUint16()
+                        utype = stream.readUint16()
+                    }
+                }
+                let propertydata = pdatas[utype];
+                let setmethod = propertydata[5];
+                let flags = propertydata[6];
+                let val = propertydata[4].createFromStream(stream);
+                let oldval = this[propertydata[2]];
+                KBEngine.INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + className + "(id=" + this.id + " " + propertydata[2] + ", val=" + val + ")!");
+                this[propertydata[2]] = val;
+                if (setmethod != null) {
+                    // base类属性或者进入世界后cell类属性会触发set_*方法
+                    if (flags == 0x00000020 || flags == 0x00000040) {
+                        if (this.owner.inited)
+                            setmethod.call(this, oldval);
+                    }
+                    else {
+                        if (this.owner.inWorld)
+                            setmethod.call(this, oldval);
+                    }
+                }
+            }
+        }
+        createFromStream(stream: MemoryStream) {
+            this.componentType = stream.readInt32();
+            this.ownerID = stream.readInt32()
+            this.owner = app.entities[this.ownerID];
+
+            //UInt16 ComponentDescrsType;
+            stream.readUint16();
+            let count = stream.readUint16()
+            if (count > 0) {
+                this.onUpdatePropertys(0, stream, count)
+            }
+            this.base = new EntityComponentCall(this.entityComponentPropertyID, this.ownerID)
+            this.base.type = ENTITYCALL_TYPE_BASE
+            this.cell = new EntityComponentCall(this.entityComponentPropertyID, this.ownerID)
+            this.cell.type = ENTITYCALL_TYPE_CELL
+        }
+    }
+    export function registerComponent() {
+        return (ctor: new () => EntityComponent) => {
+            let name = getQualifiedClassName(ctor);
+            // KBEngine['Entities'] = KBEngine['Entities'] || {}
             KBEngine['Entities'][name] = ctor;
         }
     }
@@ -1467,11 +1650,6 @@ namespace KBEngine {
 namespace KBEngine {
     export const ENTITYCALL_TYPE_CELL = 0;
     export const ENTITYCALL_TYPE_BASE = 1;
-
-    //这个东西好像没有同步给客户端
-    export class EntityComponent {
-
-    }
 
     export class EntityCall {
         constructor() {
@@ -1510,6 +1688,13 @@ namespace KBEngine {
 
             if (this.bundle == bundle)
                 this.bundle = null;
+        }
+    }
+    export class EntityComponentCall extends EntityCall {
+        constructor(ecpId: number, eid: number) {
+            super()
+            this.id = eid;
+            this.className = getQualifiedClassName(this);
         }
     }
 
@@ -1941,24 +2126,7 @@ namespace KBEngine {
             return typeof (v) == "string";
         }
     }
-    export class DATATYPE_ENTITY_COMPONENT {
-        bind() {
-        }
 
-        createFromStream(stream) {
-        }
-
-        addToStream(stream, v) {
-        }
-
-        parseDefaultValStr(v) {
-            return new Uint8Array(0);;
-        }
-
-        isSameType(v) {
-            return false;
-        }
-    }
     export class DATATYPE_ENTITYCALL {
         bind() {
         }
@@ -2107,7 +2275,6 @@ namespace KBEngine {
         // export const PY_LIST = new DATATYPE_PYTHON();
         export const UNICODE = new DATATYPE_UNICODE();
         export const ENTITYCALL = new DATATYPE_ENTITYCALL();
-        export const ENTITY_COMPONENT = new DATATYPE_ENTITY_COMPONENT();
         export const BLOB = new DATATYPE_BLOB();
     };
 }
@@ -3003,7 +3170,7 @@ namespace KBEngine {
                     let defaultValStr = infos[3];
                     let utype = infos[4];
 
-                    if (defmethod != undefined)
+                    if (defmethod != undefined && utype)
                         defmethod.prototype[n] = utype.parseDefaultValStr(defaultValStr);
                 };
 
@@ -3378,6 +3545,7 @@ namespace KBEngine {
                 }
 
                 entity.__init__();
+                entity.attachComponents();
                 entity.inited = true;
 
                 if (app.args.isOnInitCallPropertysSetMethods)
@@ -3416,7 +3584,7 @@ namespace KBEngine {
             if (entity == undefined) {
                 let entityMessage = bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
-                    ERROR_MSG("KBEngineApp::Client_onUpdatePropertys: entity(" + eid + ") not found!");
+                    ERROR_MSG("KBEngineApp::Client_onUpdEntityComponentatePropertys: entity(" + eid + ") not found!");
                     return;
                 }
 
@@ -3426,40 +3594,7 @@ namespace KBEngine {
                 bufferedCreateEntityMessages[eid] = stream1;
                 return;
             }
-
-            let currModule = moduledefs[entity.className];
-            let pdatas = currModule.propertys;
-            let componentUID;
-            while (stream.length() > 0) {
-                let utype = 0;
-                if (currModule.usePropertyDescrAlias) {
-                    componentUID = stream.readInt8();
-                    utype = stream.readUint8();
-                } else {
-                    componentUID = stream.readUint16()
-                    utype = stream.readUint16();
-                }
-                let propertydata = pdatas[utype];
-                let setmethod = propertydata[5];
-                let flags = propertydata[6];
-                let val = propertydata[4].createFromStream(stream);
-                let oldval = entity[propertydata[2]];
-
-                INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + entity.className + "(id=" + eid + " " + propertydata[2] + ", val=" + val + ")!");
-
-                entity[propertydata[2]] = val;
-                if (setmethod != null) {
-                    // base类属性或者进入世界后cell类属性会触发set_*方法
-                    if (flags == 0x00000020 || flags == 0x00000040) {
-                        if (entity.inited)
-                            setmethod.call(entity, oldval);
-                    }
-                    else {
-                        if (entity.inWorld)
-                            setmethod.call(entity, oldval);
-                    }
-                }
-            }
+            entity.onUpdatePropertys(stream)
         }
         Client_onUpdatePropertysOptimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
@@ -3556,6 +3691,7 @@ namespace KBEngine {
                 // entity.isOnGround = isOnGround > 0;
                 entity.isOnGround = isOnGround;
                 entity.__init__();
+                entity.attachComponents();
                 entity.inited = true;
                 entity.inWorld = true;
                 entity.enterWorld();

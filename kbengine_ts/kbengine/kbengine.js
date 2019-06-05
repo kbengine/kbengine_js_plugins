@@ -14,22 +14,24 @@ r.prototype = e.prototype, t.prototype = new r();
  *
  * 注：（下面的是重点）
  *      1、实体声明的命名空间为KBEngine.Entities,与官方的KBEngine不同
- *      2、cocos creator环境下,按下面方法声明实体
-
-            @KBEngine.registerEntity('Account') /// <---这个Account对应服务器上实体
-            export default class AccountEntity extends KBEngine.Entity {
+ *      2、 @KBEngine.registerEntity()    ///  TODO: <---组件使用@KBEngine.registerComponent()
+            export default class Account extends KBEngine.Entity {      ///  TODO: 组件继承自KBEngine.EntityComponent,类名等于服务器(实体/组件)名
+                __comps__ = {组件名:组件类型}    ///TODO: 因为组件类型不会从服务器同步，只能获取到EntityComponent，无法获取具体类型，所以需要在实体里进行手动设置，需要代码提示可以手动声明一下
                 __init__() {
                     console.log('创建account')
                 }
             }
             //这里加入声明用于vscode代码提示
             declare global {
-                namespace KBEngine.Entities {
-                    class Account extends AccountEntity { }  /// <---这个Account对应服务器上实体
+                namespace KBEngine {
+                    interface IEntities{
+                        Account:new ()=>Account
+                    }
                 }
             }
 
  *      3、cocos creator编辑器下会出现KBEngine未找到的问题，不影响运行，如果想去掉，将允许编辑器加载勾选
+        4、因为下班了，组件的basecall和cellcall还未测试，改天再继续
  */
 /*-----------------------------------------------------------------------------------------
                                             global
@@ -132,6 +134,29 @@ if (!ArrayBuffer['transfer']) {
     }());
     KBEngine.UINT64 = UINT64;
     __reflect(UINT64.prototype, "KBEngine.UINT64");
+})(KBEngine || (KBEngine = {}));
+(function (KBEngine) {
+    function getQualifiedClassName(value) {
+        var type = typeof value;
+        if (!value || (type != "object" && !value.prototype)) {
+            return type;
+        }
+        var prototype = value.prototype ? value.prototype : Object.getPrototypeOf(value);
+        if (prototype.hasOwnProperty("__class__")) {
+            return prototype["__class__"];
+        }
+        var constructorString = prototype.constructor.toString().trim();
+        var index = constructorString.indexOf("(");
+        var className = constructorString.substring(9, index);
+        var c = className.split('.');
+        Object.defineProperty(prototype, "__class__", {
+            value: c[c.length - 1],
+            enumerable: false,
+            writable: true
+        });
+        return c[c.length - 1];
+    }
+    KBEngine.getQualifiedClassName = getQualifiedClassName;
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                             debug
@@ -1168,8 +1193,10 @@ if (!ArrayBuffer['transfer']) {
                                             entity
 -----------------------------------------------------------------------------------------*/
 (function (KBEngine) {
+    KBEngine.Entities = {};
     var Entity = (function () {
         function Entity() {
+            this.__comps__ = {};
             this.id = 0;
             this.className = "";
             this.position = new KBEngine.Vector3(0, 0, 0);
@@ -1187,8 +1214,34 @@ if (!ArrayBuffer['transfer']) {
             this.entityLastLocalDir = new KBEngine.Vector3(0.0, 0.0, 0.0);
             // 玩家是否在地面上
             this.isOnGround = false;
+            for (var i in this.__comps__) {
+                this[i] = new this.__comps__[i]();
+            }
         }
         Entity.prototype.__init__ = function () {
+        };
+        Entity.prototype.attachComponents = function () {
+            for (var i in this.__comps__) {
+                this[i].onAttached(this);
+            }
+        };
+        Entity.prototype.getComponents = function (compName, all) {
+            if (all === void 0) { all = false; }
+            var res = [];
+            for (var i in this.__comps__) {
+                if (KBEngine.getQualifiedClassName(this.__comps__[i]) === compName) {
+                    if (!all) {
+                        return this[i];
+                    }
+                    res.push(this[i]);
+                }
+            }
+            return res;
+        };
+        Entity.prototype.detachComponents = function () {
+            for (var i in this.__comps__) {
+                this[i].onDetached(this);
+            }
         };
         Entity.prototype.callPropertysSetMethods = function () {
             var currModule = KBEngine.moduledefs[this.className];
@@ -1220,6 +1273,7 @@ if (!ArrayBuffer['transfer']) {
             ;
         };
         Entity.prototype.onDestroy = function () {
+            this.detachComponents();
         };
         Entity.prototype.onControlled = function (bIsControlled) {
         };
@@ -1320,7 +1374,18 @@ if (!ArrayBuffer['transfer']) {
             KBEngine.INFO_MSG(this.className + '::enterWorld: ' + this.id);
             this.inWorld = true;
             this.onEnterWorld();
+            this.onComponentsEnterworld();
             KBEngine.Event.fire("onEnterWorld", this);
+        };
+        Entity.prototype.onComponentsEnterworld = function () {
+            for (var i in this.__comps__) {
+                this[i].onEnterWorld();
+            }
+        };
+        Entity.prototype.onComponentsLeaveworld = function () {
+            for (var i in this.__comps__) {
+                this[i].onLeaveWorld();
+            }
         };
         Entity.prototype.onEnterWorld = function () {
         };
@@ -1328,6 +1393,7 @@ if (!ArrayBuffer['transfer']) {
             KBEngine.INFO_MSG(this.className + '::leaveWorld: ' + this.id);
             this.inWorld = false;
             this.onLeaveWorld();
+            this.onComponentsLeaveworld();
             KBEngine.Event.fire("onLeaveWorld", this);
         };
         Entity.prototype.onLeaveWorld = function () {
@@ -1360,6 +1426,51 @@ if (!ArrayBuffer['transfer']) {
         };
         Entity.prototype.onUpdateVolatileData = function () {
         };
+        Entity.prototype.onUpdatePropertys = function (stream) {
+            var currModule = KBEngine.moduledefs[KBEngine.getQualifiedClassName(this)];
+            var pdatas = currModule.propertys;
+            while (stream.length() > 0) {
+                var utype = 0, cId = 0;
+                if (currModule.usePropertyDescrAlias) {
+                    cId = stream.readUint8();
+                    utype = stream.readUint8();
+                }
+                else {
+                    cId = stream.readUint16();
+                    utype = stream.readUint16();
+                }
+                if (cId !== 0) {
+                    var comp = pdatas[cId];
+                    if (this[comp[2]]) {
+                        this[comp[2]].onUpdatePropertys(utype, stream, -1);
+                    }
+                    continue;
+                }
+                var propertydata = pdatas[utype];
+                var setmethod = propertydata[5];
+                var flags = propertydata[6];
+                if (!propertydata[4]) {
+                    if (this[propertydata[2]] && typeof this[propertydata[2]].createFromStream === 'function')
+                        this[propertydata[2]].createFromStream(stream);
+                    continue;
+                }
+                var val = propertydata[4].createFromStream(stream);
+                var oldval = this[propertydata[2]];
+                KBEngine.INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + this.className + "(id=" + this.id + " " + propertydata[2] + ", val=" + val + ")!");
+                this[propertydata[2]] = val;
+                if (setmethod != null) {
+                    // base类属性或者进入世界后cell类属性会触发set_*方法
+                    if (flags == 0x00000020 || flags == 0x00000040) {
+                        if (this.inited)
+                            setmethod.call(this, oldval);
+                    }
+                    else {
+                        if (this.inWorld)
+                            setmethod.call(this, oldval);
+                    }
+                }
+            }
+        };
         Entity.prototype.set_direction = function (old) {
             KBEngine.DEBUG_MSG(this.className + "::set_direction: " + this.direction);
             KBEngine.Event.fire("set_direction", this);
@@ -1368,13 +1479,94 @@ if (!ArrayBuffer['transfer']) {
     }());
     KBEngine.Entity = Entity;
     __reflect(Entity.prototype, "KBEngine.Entity");
-    function registerEntity(name) {
+    function registerEntity() {
         return function (ctor) {
-            KBEngine['Entities'] = KBEngine['Entities'] || {};
+            var name = KBEngine.getQualifiedClassName(ctor);
+            // KBEngine['Entities'] = KBEngine['Entities'] || {}
             KBEngine['Entities'][name] = ctor;
         };
     }
     KBEngine.registerEntity = registerEntity;
+})(KBEngine || (KBEngine = {}));
+(function (KBEngine) {
+    var EntityComponent = (function () {
+        function EntityComponent() {
+            this.id = 0;
+            this.entityComponentPropertyID = 0;
+            this.componentType = 0;
+            this.ownerID = 0;
+            this.owner = null;
+            this.name_ = '';
+            this.base = null;
+            this.cell = null;
+        }
+        EntityComponent.prototype.onAttached = function (owner) { };
+        EntityComponent.prototype.onDetached = function (owner) { };
+        EntityComponent.prototype.onEnterWorld = function () { };
+        EntityComponent.prototype.onLeaveWorld = function () { };
+        EntityComponent.prototype.onUpdatePropertys = function (propUtype, stream, maxCount) {
+            var className = KBEngine.getQualifiedClassName(this);
+            var currModule = KBEngine.moduledefs[className];
+            var pdatas = currModule.propertys;
+            while (stream.length() > 0 && maxCount-- != 0) {
+                var utype = propUtype, cId = 0;
+                if (utype === 0) {
+                    if (currModule.usePropertyDescrAlias) {
+                        cId = stream.readUint8();
+                        utype = stream.readUint8();
+                    }
+                    else {
+                        cId = stream.readUint16();
+                        utype = stream.readUint16();
+                    }
+                }
+                var propertydata = pdatas[utype];
+                var setmethod = propertydata[5];
+                var flags = propertydata[6];
+                var val = propertydata[4].createFromStream(stream);
+                var oldval = this[propertydata[2]];
+                KBEngine.INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + className + "(id=" + this.id + " " + propertydata[2] + ", val=" + val + ")!");
+                this[propertydata[2]] = val;
+                if (setmethod != null) {
+                    // base类属性或者进入世界后cell类属性会触发set_*方法
+                    if (flags == 0x00000020 || flags == 0x00000040) {
+                        if (this.owner.inited)
+                            setmethod.call(this, oldval);
+                    }
+                    else {
+                        if (this.owner.inWorld)
+                            setmethod.call(this, oldval);
+                    }
+                }
+            }
+        };
+        EntityComponent.prototype.createFromStream = function (stream) {
+            this.componentType = stream.readInt32();
+            this.ownerID = stream.readInt32();
+            this.owner = KBEngine.app.entities[this.ownerID];
+            //UInt16 ComponentDescrsType;
+            stream.readUint16();
+            var count = stream.readUint16();
+            if (count > 0) {
+                this.onUpdatePropertys(0, stream, count);
+            }
+            this.base = new KBEngine.EntityComponentCall(this.entityComponentPropertyID, this.ownerID);
+            this.base.type = KBEngine.ENTITYCALL_TYPE_BASE;
+            this.cell = new KBEngine.EntityComponentCall(this.entityComponentPropertyID, this.ownerID);
+            this.cell.type = KBEngine.ENTITYCALL_TYPE_CELL;
+        };
+        return EntityComponent;
+    }());
+    KBEngine.EntityComponent = EntityComponent;
+    __reflect(EntityComponent.prototype, "KBEngine.EntityComponent");
+    function registerComponent() {
+        return function (ctor) {
+            var name = KBEngine.getQualifiedClassName(ctor);
+            // KBEngine['Entities'] = KBEngine['Entities'] || {}
+            KBEngine['Entities'][name] = ctor;
+        };
+    }
+    KBEngine.registerComponent = registerComponent;
 })(KBEngine || (KBEngine = {}));
 /*-----------------------------------------------------------------------------------------
                                                 EntityCall
@@ -1382,14 +1574,6 @@ if (!ArrayBuffer['transfer']) {
 (function (KBEngine) {
     KBEngine.ENTITYCALL_TYPE_CELL = 0;
     KBEngine.ENTITYCALL_TYPE_BASE = 1;
-    //这个东西好像没有同步给客户端
-    var EntityComponent = (function () {
-        function EntityComponent() {
-        }
-        return EntityComponent;
-    }());
-    KBEngine.EntityComponent = EntityComponent;
-    __reflect(EntityComponent.prototype, "KBEngine.EntityComponent");
     var EntityCall = (function () {
         function EntityCall() {
             this.id = 0;
@@ -1425,6 +1609,18 @@ if (!ArrayBuffer['transfer']) {
     }());
     KBEngine.EntityCall = EntityCall;
     __reflect(EntityCall.prototype, "KBEngine.EntityCall");
+    var EntityComponentCall = (function (_super) {
+        __extends(EntityComponentCall, _super);
+        function EntityComponentCall(ecpId, eid) {
+            var _this = _super.call(this) || this;
+            _this.id = eid;
+            _this.className = KBEngine.getQualifiedClassName(_this);
+            return _this;
+        }
+        return EntityComponentCall;
+    }(EntityCall));
+    KBEngine.EntityComponentCall = EntityComponentCall;
+    __reflect(EntityComponentCall.prototype, "KBEngine.EntityComponentCall");
     var DATATYPE_UINT8 = (function () {
         function DATATYPE_UINT8() {
         }
@@ -1851,26 +2047,6 @@ if (!ArrayBuffer['transfer']) {
     }());
     KBEngine.DATATYPE_UNICODE = DATATYPE_UNICODE;
     __reflect(DATATYPE_UNICODE.prototype, "KBEngine.DATATYPE_UNICODE");
-    var DATATYPE_ENTITY_COMPONENT = (function () {
-        function DATATYPE_ENTITY_COMPONENT() {
-        }
-        DATATYPE_ENTITY_COMPONENT.prototype.bind = function () {
-        };
-        DATATYPE_ENTITY_COMPONENT.prototype.createFromStream = function (stream) {
-        };
-        DATATYPE_ENTITY_COMPONENT.prototype.addToStream = function (stream, v) {
-        };
-        DATATYPE_ENTITY_COMPONENT.prototype.parseDefaultValStr = function (v) {
-            return new Uint8Array(0);
-            ;
-        };
-        DATATYPE_ENTITY_COMPONENT.prototype.isSameType = function (v) {
-            return false;
-        };
-        return DATATYPE_ENTITY_COMPONENT;
-    }());
-    KBEngine.DATATYPE_ENTITY_COMPONENT = DATATYPE_ENTITY_COMPONENT;
-    __reflect(DATATYPE_ENTITY_COMPONENT.prototype, "KBEngine.DATATYPE_ENTITY_COMPONENT");
     var DATATYPE_ENTITYCALL = (function () {
         function DATATYPE_ENTITYCALL() {
         }
@@ -2014,7 +2190,6 @@ if (!ArrayBuffer['transfer']) {
         // export const PY_LIST = new DATATYPE_PYTHON();
         datatypes.UNICODE = new DATATYPE_UNICODE();
         datatypes.ENTITYCALL = new DATATYPE_ENTITYCALL();
-        datatypes.ENTITY_COMPONENT = new DATATYPE_ENTITY_COMPONENT();
         datatypes.BLOB = new DATATYPE_BLOB();
     })(datatypes = KBEngine.datatypes || (KBEngine.datatypes = {}));
     ;
@@ -2785,7 +2960,7 @@ if (!ArrayBuffer['transfer']) {
                     var n = infos[2];
                     var defaultValStr = infos[3];
                     var utype = infos[4];
-                    if (defmethod != undefined)
+                    if (defmethod != undefined && utype)
                         defmethod.prototype[n] = utype.parseDefaultValStr(defaultValStr);
                 }
                 ;
@@ -3122,6 +3297,7 @@ if (!ArrayBuffer['transfer']) {
                     delete KBEngine.bufferedCreateEntityMessages[eid];
                 }
                 entity_1.__init__();
+                entity_1.attachComponents();
                 entity_1.inited = true;
                 if (KBEngine.app.args.isOnInitCallPropertysSetMethods)
                     entity_1.callPropertysSetMethods();
@@ -3155,7 +3331,7 @@ if (!ArrayBuffer['transfer']) {
             if (entity == undefined) {
                 var entityMessage = KBEngine.bufferedCreateEntityMessages[eid];
                 if (entityMessage != undefined) {
-                    KBEngine.ERROR_MSG("KBEngineApp::Client_onUpdatePropertys: entity(" + eid + ") not found!");
+                    KBEngine.ERROR_MSG("KBEngineApp::Client_onUpdEntityComponentatePropertys: entity(" + eid + ") not found!");
                     return;
                 }
                 var stream1 = new KBEngine.MemoryStream(stream.buffer);
@@ -3164,38 +3340,7 @@ if (!ArrayBuffer['transfer']) {
                 KBEngine.bufferedCreateEntityMessages[eid] = stream1;
                 return;
             }
-            var currModule = KBEngine.moduledefs[entity.className];
-            var pdatas = currModule.propertys;
-            var componentUID;
-            while (stream.length() > 0) {
-                var utype = 0;
-                if (currModule.usePropertyDescrAlias) {
-                    componentUID = stream.readInt8();
-                    utype = stream.readUint8();
-                }
-                else {
-                    componentUID = stream.readUint16();
-                    utype = stream.readUint16();
-                }
-                var propertydata = pdatas[utype];
-                var setmethod = propertydata[5];
-                var flags = propertydata[6];
-                var val = propertydata[4].createFromStream(stream);
-                var oldval = entity[propertydata[2]];
-                KBEngine.INFO_MSG("KBEngineApp::Client_onUpdatePropertys: " + entity.className + "(id=" + eid + " " + propertydata[2] + ", val=" + val + ")!");
-                entity[propertydata[2]] = val;
-                if (setmethod != null) {
-                    // base类属性或者进入世界后cell类属性会触发set_*方法
-                    if (flags == 0x00000020 || flags == 0x00000040) {
-                        if (entity.inited)
-                            setmethod.call(entity, oldval);
-                    }
-                    else {
-                        if (entity.inWorld)
-                            setmethod.call(entity, oldval);
-                    }
-                }
-            }
+            entity.onUpdatePropertys(stream);
         };
         KBEngineApp.prototype.Client_onUpdatePropertysOptimized = function (stream) {
             var eid = KBEngine.app.getViewEntityIDFromStream(stream);
@@ -3278,6 +3423,7 @@ if (!ArrayBuffer['transfer']) {
                 // entity.isOnGround = isOnGround > 0;
                 entity_2.isOnGround = isOnGround;
                 entity_2.__init__();
+                entity_2.attachComponents();
                 entity_2.inited = true;
                 entity_2.inWorld = true;
                 entity_2.enterWorld();
