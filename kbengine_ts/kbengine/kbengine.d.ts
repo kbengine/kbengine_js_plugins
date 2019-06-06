@@ -304,6 +304,7 @@ declare namespace KBEngine {
         onUpdateVolatileData(): void;
         onUpdatePropertys(stream: MemoryStream): void;
         set_direction(old: any): void;
+        onRemoteMethodCall(stream: MemoryStream): void;
     }
     function registerEntity(): (ctor: new () => Entity) => void;
 }
@@ -314,15 +315,18 @@ declare namespace KBEngine {
         componentType: number;
         ownerID: number;
         owner: Entity;
-        name_: string;
+        className: string;
         base: EntityComponentCall;
         cell: EntityComponentCall;
         protected onAttached(owner: Entity): void;
         protected onDetached(owner: Entity): void;
         protected onEnterWorld(): void;
         protected onLeaveWorld(): void;
+        baseCall(type: string, ...params: any[]): void;
+        cellCall(type: string, ...params: any[]): void;
         onUpdatePropertys(propUtype: number, stream: MemoryStream, maxCount: number): void;
-        createFromStream(stream: MemoryStream): void;
+        onRemoteMethodCall(propUtype: number, stream: MemoryStream): void;
+        createFromStream(stream: MemoryStream, ecpId: number): void;
     }
     function registerComponent(): (ctor: new () => EntityComponent) => void;
 }
@@ -339,10 +343,11 @@ declare namespace KBEngine {
         isBase(): boolean;
         isCell(): boolean;
         newCall(): any;
-        sendCall(bundle: any): void;
+        sendCall(bundle?: Bundle): void;
     }
     class EntityComponentCall extends EntityCall {
-        constructor(ecpId: number, eid: number);
+        entityComponentPropertyID: number;
+        constructor(ecpId: number, eid: number, className: string);
     }
     class DATATYPE_UINT8 {
         bind(): void;

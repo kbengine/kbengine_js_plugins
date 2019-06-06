@@ -1451,7 +1451,7 @@ if (!ArrayBuffer['transfer']) {
                 var flags = propertydata[6];
                 if (!propertydata[4]) {
                     if (this[propertydata[2]] && typeof this[propertydata[2]].createFromStream === 'function')
-                        this[propertydata[2]].createFromStream(stream);
+                        this[propertydata[2]].createFromStream(stream, propertydata[0]);
                     continue;
                 }
                 var val = propertydata[4].createFromStream(stream);
@@ -1475,6 +1475,29 @@ if (!ArrayBuffer['transfer']) {
             KBEngine.DEBUG_MSG(this.className + "::set_direction: " + this.direction);
             KBEngine.Event.fire("set_direction", this);
         };
+        Entity.prototype.onRemoteMethodCall = function (stream) {
+            var sm = KBEngine.moduledefs[this.className];
+            var ComponentID = sm.usePropertyDescrAlias ? stream.readUint8() : stream.readUint16();
+            var methodUtype = sm.useMethodDescrAlias ? stream.readUint8() : stream.readUint16();
+            if (ComponentID !== 0) {
+                var comp = this[sm.propertys[ComponentID][2]];
+                if (comp)
+                    comp.onRemoteMethodCall(methodUtype, stream);
+                return;
+            }
+            var methoddata = KBEngine.moduledefs[this.className].methods[methodUtype];
+            var args = [];
+            var argsdata = methoddata[3];
+            for (var i = 0; i < argsdata.length; i++) {
+                args.push(argsdata[i].createFromStream(stream));
+            }
+            if (this[methoddata[2]] != undefined) {
+                this[methoddata[2]].apply(this, args);
+            }
+            else {
+                KBEngine.ERROR_MSG("KBEngineApp::Client_onRemoteMethodCall: entity(" + this.id + ") not found method(" + methoddata[2] + ")!");
+            }
+        };
         return Entity;
     }());
     KBEngine.Entity = Entity;
@@ -1496,7 +1519,7 @@ if (!ArrayBuffer['transfer']) {
             this.componentType = 0;
             this.ownerID = 0;
             this.owner = null;
-            this.name_ = '';
+            this.className = '';
             this.base = null;
             this.cell = null;
         }
@@ -1504,6 +1527,90 @@ if (!ArrayBuffer['transfer']) {
         EntityComponent.prototype.onDetached = function (owner) { };
         EntityComponent.prototype.onEnterWorld = function () { };
         EntityComponent.prototype.onLeaveWorld = function () { };
+        EntityComponent.prototype.baseCall = function (type) {
+            var params = [];
+            for (var _i = 1; _i < arguments.length; _i++) {
+                params[_i - 1] = arguments[_i];
+            }
+            var className = this.className;
+            if (this.base == undefined) {
+                KBEngine.ERROR_MSG('Entity::baseCall: base is None!');
+                return;
+            }
+            var method = KBEngine.moduledefs[className].base_methods[type];
+            if (method == undefined) {
+                KBEngine.ERROR_MSG("Entity::baseCall: The server did not find the def_method(" + className + "." + type + ")!");
+                return;
+            }
+            var methodID = method[0];
+            var args = method[3];
+            if (params.length != args.length) {
+                KBEngine.ERROR_MSG("Entity::baseCall: args(" + (params.length - 1) + "!= " + args.length + ") size is error!");
+                return;
+            }
+            this.base.newCall();
+            this.base.bundle.writeUint16(this.entityComponentPropertyID);
+            this.base.bundle.writeUint16(methodID);
+            try {
+                for (var i = 0; i < params.length; i++) {
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.base.bundle, params[i]);
+                    }
+                    else {
+                        throw new Error("Entity::baseCall: arg[" + i + "] is error!");
+                    }
+                }
+            }
+            catch (e) {
+                KBEngine.ERROR_MSG(e.toString());
+                KBEngine.ERROR_MSG('Entity::baseCall: args is error!');
+                this.base.bundle = null;
+                return;
+            }
+            this.base.sendCall();
+        };
+        EntityComponent.prototype.cellCall = function (type) {
+            var params = [];
+            for (var _i = 1; _i < arguments.length; _i++) {
+                params[_i - 1] = arguments[_i];
+            }
+            var className = this.className;
+            if (this.cell == undefined) {
+                KBEngine.ERROR_MSG('Entity::cellCall: cell is None!');
+                return;
+            }
+            var method = KBEngine.moduledefs[className].cell_methods[type];
+            if (method == undefined) {
+                KBEngine.ERROR_MSG("Entity::cellCall: The server did not find the def_method(" + className + "." + type + ")!");
+                return;
+            }
+            var methodID = method[0];
+            var args = method[3];
+            if (params.length != args.length) {
+                KBEngine.ERROR_MSG("Entity::cellCall: args(" + (params.length) + "!= " + args.length + ") size is error!");
+                return;
+            }
+            this.cell.newCall();
+            this.cell.bundle.writeUint16(this.entityComponentPropertyID);
+            this.cell.bundle.writeUint16(methodID);
+            try {
+                for (var i = 0; i < args.length; i++) {
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.cell.bundle, params[i]);
+                    }
+                    else {
+                        throw new Error("Entity::cellCall: arg[" + i + "] is error!");
+                    }
+                }
+            }
+            catch (e) {
+                KBEngine.ERROR_MSG(e.toString());
+                KBEngine.ERROR_MSG('Entity::cellCall: args is error!');
+                this.cell.bundle = null;
+                return;
+            }
+            this.cell.sendCall();
+        };
         EntityComponent.prototype.onUpdatePropertys = function (propUtype, stream, maxCount) {
             var className = KBEngine.getQualifiedClassName(this);
             var currModule = KBEngine.moduledefs[className];
@@ -1540,7 +1647,17 @@ if (!ArrayBuffer['transfer']) {
                 }
             }
         };
-        EntityComponent.prototype.createFromStream = function (stream) {
+        EntityComponent.prototype.onRemoteMethodCall = function (propUtype, stream) {
+            var sm = KBEngine.moduledefs[this.className].methods[propUtype];
+            var args = [];
+            var argsdata = sm[3];
+            for (var i = 0; i < argsdata.length; i++) {
+                args.push(argsdata[i].createFromStream(stream));
+            }
+            typeof this[sm[2]] === 'function' && this[sm[2]].apply(this, args);
+        };
+        EntityComponent.prototype.createFromStream = function (stream, ecpId) {
+            this.entityComponentPropertyID = ecpId;
             this.componentType = stream.readInt32();
             this.ownerID = stream.readInt32();
             this.owner = KBEngine.app.entities[this.ownerID];
@@ -1550,9 +1667,10 @@ if (!ArrayBuffer['transfer']) {
             if (count > 0) {
                 this.onUpdatePropertys(0, stream, count);
             }
-            this.base = new KBEngine.EntityComponentCall(this.entityComponentPropertyID, this.ownerID);
+            this.className = KBEngine.getQualifiedClassName(this);
+            this.base = new KBEngine.EntityComponentCall(this.entityComponentPropertyID, this.ownerID, this.className);
             this.base.type = KBEngine.ENTITYCALL_TYPE_BASE;
-            this.cell = new KBEngine.EntityComponentCall(this.entityComponentPropertyID, this.ownerID);
+            this.cell = new KBEngine.EntityComponentCall(this.entityComponentPropertyID, this.ownerID, this.className);
             this.cell.type = KBEngine.ENTITYCALL_TYPE_CELL;
         };
         return EntityComponent;
@@ -1611,10 +1729,12 @@ if (!ArrayBuffer['transfer']) {
     __reflect(EntityCall.prototype, "KBEngine.EntityCall");
     var EntityComponentCall = (function (_super) {
         __extends(EntityComponentCall, _super);
-        function EntityComponentCall(ecpId, eid) {
+        function EntityComponentCall(ecpId, eid, className) {
             var _this = _super.call(this) || this;
+            _this.entityComponentPropertyID = 0;
+            _this.entityComponentPropertyID = ecpId;
             _this.id = eid;
-            _this.className = KBEngine.getQualifiedClassName(_this);
+            _this.className = className;
             return _this;
         }
         return EntityComponentCall;
@@ -3356,27 +3476,7 @@ if (!ArrayBuffer['transfer']) {
                 KBEngine.ERROR_MSG("KBEngineApp::Client_onRemoteMethodCall: entity(" + eid + ") not found!");
                 return;
             }
-            var methodUtype = 0, ComponentID = 0;
-            if (KBEngine.moduledefs[entity.className].useMethodDescrAlias) {
-                ComponentID = stream.readInt8();
-                methodUtype = stream.readUint8();
-            }
-            else {
-                ComponentID = stream.readUint16();
-                methodUtype = stream.readUint16();
-            }
-            var methoddata = KBEngine.moduledefs[entity.className].methods[methodUtype];
-            var args = [];
-            var argsdata = methoddata[3];
-            for (var i = 0; i < argsdata.length; i++) {
-                args.push(argsdata[i].createFromStream(stream));
-            }
-            if (entity[methoddata[2]] != undefined) {
-                entity[methoddata[2]].apply(entity, args);
-            }
-            else {
-                KBEngine.ERROR_MSG("KBEngineApp::Client_onRemoteMethodCall: entity(" + eid + ") not found method(" + methoddata[2] + ")!");
-            }
+            entity.onRemoteMethodCall(stream);
         };
         KBEngineApp.prototype.Client_onRemoteMethodCallOptimized = function (stream) {
             var eid = KBEngine.app.getViewEntityIDFromStream(stream);

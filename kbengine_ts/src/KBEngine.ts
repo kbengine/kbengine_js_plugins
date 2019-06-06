@@ -1534,7 +1534,7 @@ namespace KBEngine {
                 let flags = propertydata[6];
                 if (!propertydata[4]) {
                     if (this[propertydata[2]] && typeof this[propertydata[2]].createFromStream === 'function')
-                        this[propertydata[2]].createFromStream(stream)
+                        this[propertydata[2]].createFromStream(stream, propertydata[0])
                     continue;
                 }
                 let val = propertydata[4].createFromStream(stream);
@@ -1558,6 +1558,30 @@ namespace KBEngine {
             DEBUG_MSG(this.className + "::set_direction: " + this.direction);
             Event.fire("set_direction", this);
         }
+        onRemoteMethodCall(stream: MemoryStream) {
+            let sm = moduledefs[this.className]
+            let ComponentID = sm.usePropertyDescrAlias ? stream.readUint8() : stream.readUint16();
+            let methodUtype = sm.useMethodDescrAlias ? stream.readUint8() : stream.readUint16();
+            if (ComponentID !== 0) {
+                let comp = this[sm.propertys[ComponentID][2]];
+                if (comp) comp.onRemoteMethodCall(methodUtype, stream)
+                return;
+            }
+
+            let methoddata = moduledefs[this.className].methods[methodUtype];
+            let args = [];
+            let argsdata = methoddata[3];
+            for (let i = 0; i < argsdata.length; i++) {
+                args.push(argsdata[i].createFromStream(stream));
+            }
+
+            if (this[methoddata[2]] != undefined) {
+                this[methoddata[2]].apply(this, args);
+            }
+            else {
+                ERROR_MSG("KBEngineApp::Client_onRemoteMethodCall: entity(" + this.id + ") not found method(" + methoddata[2] + ")!");
+            }
+        }
     }
     export function registerEntity() {
         return (ctor: new () => Entity) => {
@@ -1574,7 +1598,7 @@ namespace KBEngine {
         componentType = 0;
         ownerID = 0;
         owner: Entity = null;
-        name_: string = ''
+        className = '';
 
         base: EntityComponentCall = null;
         cell: EntityComponentCall = null;
@@ -1584,6 +1608,98 @@ namespace KBEngine {
         protected onEnterWorld() { }
         protected onLeaveWorld() { }
 
+        baseCall(type: string, ...params: any[]) {
+            let className = this.className
+            if (this.base == undefined) {
+                ERROR_MSG('Entity::baseCall: base is None!');
+                return;
+            }
+
+            let method = moduledefs[className].base_methods[type];
+
+            if (method == undefined) {
+                ERROR_MSG("Entity::baseCall: The server did not find the def_method(" + className + "." + type + ")!");
+                return;
+            }
+
+            let methodID = method[0];
+            let args = method[3];
+
+            if (params.length != args.length) {
+                ERROR_MSG("Entity::baseCall: args(" + (params.length - 1) + "!= " + args.length + ") size is error!");
+                return;
+            }
+
+            this.base.newCall();
+            this.base.bundle.writeUint16(this.entityComponentPropertyID);
+            this.base.bundle.writeUint16(methodID);
+
+            try {
+                for (let i = 0; i < params.length; i++) {
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.base.bundle, params[i]);
+                    }
+                    else {
+                        throw new Error("Entity::baseCall: arg[" + i + "] is error!");
+                    }
+                }
+            }
+            catch (e) {
+                ERROR_MSG(e.toString());
+                ERROR_MSG('Entity::baseCall: args is error!');
+                this.base.bundle = null;
+                return;
+            }
+
+            this.base.sendCall();
+        }
+        cellCall(type: string, ...params: any[]) {
+
+            let className = this.className
+
+            if (this.cell == undefined) {
+                ERROR_MSG('Entity::cellCall: cell is None!');
+                return;
+            }
+
+            let method = moduledefs[className].cell_methods[type];
+
+            if (method == undefined) {
+                ERROR_MSG("Entity::cellCall: The server did not find the def_method(" + className + "." + type + ")!");
+                return;
+            }
+
+            let methodID = method[0];
+            let args = method[3];
+
+            if (params.length != args.length) {
+                ERROR_MSG("Entity::cellCall: args(" + (params.length) + "!= " + args.length + ") size is error!");
+                return;
+            }
+
+            this.cell.newCall()
+            this.cell.bundle.writeUint16(this.entityComponentPropertyID);
+            this.cell.bundle.writeUint16(methodID);
+
+            try {
+                for (let i = 0; i < args.length; i++) {
+                    if (args[i].isSameType(params[i])) {
+                        args[i].addToStream(this.cell.bundle, params[i]);
+                    }
+                    else {
+                        throw new Error("Entity::cellCall: arg[" + i + "] is error!");
+                    }
+                }
+            }
+            catch (e) {
+                ERROR_MSG(e.toString());
+                ERROR_MSG('Entity::cellCall: args is error!');
+                this.cell.bundle = null;
+                return;
+            }
+
+            this.cell.sendCall();
+        }
         onUpdatePropertys(propUtype: number, stream: MemoryStream, maxCount: number) {
             let className = getQualifiedClassName(this)
             let currModule = moduledefs[className];
@@ -1619,7 +1735,18 @@ namespace KBEngine {
                 }
             }
         }
-        createFromStream(stream: MemoryStream) {
+        onRemoteMethodCall(propUtype: number, stream: MemoryStream) {
+            let sm = moduledefs[this.className].methods[propUtype];
+
+            let args = [];
+            let argsdata = sm[3];
+            for (let i = 0; i < argsdata.length; i++) {
+                args.push(argsdata[i].createFromStream(stream));
+            }
+            typeof this[sm[2]] === 'function' && this[sm[2]].apply(this, args)
+        }
+        createFromStream(stream: MemoryStream, ecpId: number) {
+            this.entityComponentPropertyID = ecpId;
             this.componentType = stream.readInt32();
             this.ownerID = stream.readInt32()
             this.owner = app.entities[this.ownerID];
@@ -1630,9 +1757,10 @@ namespace KBEngine {
             if (count > 0) {
                 this.onUpdatePropertys(0, stream, count)
             }
-            this.base = new EntityComponentCall(this.entityComponentPropertyID, this.ownerID)
+            this.className = getQualifiedClassName(this)
+            this.base = new EntityComponentCall(this.entityComponentPropertyID, this.ownerID, this.className)
             this.base.type = ENTITYCALL_TYPE_BASE
-            this.cell = new EntityComponentCall(this.entityComponentPropertyID, this.ownerID)
+            this.cell = new EntityComponentCall(this.entityComponentPropertyID, this.ownerID, this.className)
             this.cell.type = ENTITYCALL_TYPE_CELL
         }
     }
@@ -1680,7 +1808,7 @@ namespace KBEngine {
 
             return this.bundle;
         }
-        sendCall(bundle) {
+        sendCall(bundle?: Bundle) {
             if (bundle == undefined)
                 bundle = this.bundle;
 
@@ -1691,10 +1819,12 @@ namespace KBEngine {
         }
     }
     export class EntityComponentCall extends EntityCall {
-        constructor(ecpId: number, eid: number) {
+        entityComponentPropertyID = 0
+        constructor(ecpId: number, eid: number, className: string) {
             super()
+            this.entityComponentPropertyID = ecpId;
             this.id = eid;
-            this.className = getQualifiedClassName(this);
+            this.className = className
         }
     }
 
@@ -3611,29 +3741,7 @@ namespace KBEngine {
                 ERROR_MSG("KBEngineApp::Client_onRemoteMethodCall: entity(" + eid + ") not found!");
                 return;
             }
-
-            let methodUtype = 0, ComponentID = 0;
-            if (moduledefs[entity.className].useMethodDescrAlias) {
-                ComponentID = stream.readInt8()
-                methodUtype = stream.readUint8();
-            }
-            else {
-                ComponentID = stream.readUint16();
-                methodUtype = stream.readUint16();
-            }
-            let methoddata = moduledefs[entity.className].methods[methodUtype];
-            let args = [];
-            let argsdata = methoddata[3];
-            for (let i = 0; i < argsdata.length; i++) {
-                args.push(argsdata[i].createFromStream(stream));
-            }
-
-            if (entity[methoddata[2]] != undefined) {
-                entity[methoddata[2]].apply(entity, args);
-            }
-            else {
-                ERROR_MSG("KBEngineApp::Client_onRemoteMethodCall: entity(" + eid + ") not found method(" + methoddata[2] + ")!");
-            }
+            entity.onRemoteMethodCall(stream)
         }
         Client_onRemoteMethodCallOptimized(stream) {
             let eid = app.getViewEntityIDFromStream(stream);
